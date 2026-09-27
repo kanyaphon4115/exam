@@ -11,16 +11,31 @@
         <circle cx="10.5" cy="10.5" r="7.5" />
         <path d="m16 16 5 5" />
       </svg>
-      <input id="order-search" type="search" placeholder="ค้นหาร้าน หรือหมายเลขสั่งซื้อ"
+      <input #searchInput id="order-search" type="search" placeholder="ค้นหาร้าน หรือหมายเลขสั่งซื้อ"
         aria-describedby="search-help" (input)="query.set($any($event.target).value)" />
     </div>
     <p id="search-help">ค้นหาได้จากชื่อร้านหรือหมายเลขสั่งซื้อ</p>
-    <p class="sr-only" role="status">พบ {{ filteredOrders().length }} รายการ</p>
   </search>
 
   <section class="card" aria-labelledby="order-list-heading">
     <h2 id="order-list-heading" lang="en">Order List</h2>
-    <p id="table-help" class="sr-only">หากตารางกว้างเกินหน้าจอ สามารถเลื่อนแนวนอน หรือกด Tab มาที่ตารางแล้วใช้ปุ่มลูกศรซ้ายและขวา</p>
+    <p role="status" aria-atomic="true" [class.state-message]="state() === 'loading' || (state() === 'normal' && filteredOrders().length === 0)" [class.sr-only]="state() === 'error' || (state() === 'normal' && filteredOrders().length > 0)">
+      @if (state() === 'loading') {
+        กำลังโหลดข้อมูล...
+      } @else if (state() === 'normal') {
+        @if (filteredOrders().length === 0) { ไม่พบรายการคำสั่งซื้อ }
+        @else { พบ {{ filteredOrders().length }} รายการ }
+      }
+    </p>
+    <p role="alert" aria-atomic="true" [class.state-message]="state() === 'error'" [class.error-message]="state() === 'error'" [class.sr-only]="state() !== 'error'">
+      @if (state() === 'error') { ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง }
+    </p>
+    @if (state() === 'error' || state() === 'loading') {
+      <button type="button" (click)="retry(searchInput)" [attr.aria-disabled]="state() === 'loading'">ลองใหม่อีกครั้ง</button>
+    }
+    <div [attr.aria-busy]="state() === 'loading'">
+    @if (state() === 'normal' && filteredOrders().length > 0) {
+    <p id="table-help" class="table-help">เลื่อนตารางแนวนอนเพื่อดูข้อมูลทั้งหมด หรือกด Tab มาที่ตารางแล้วใช้ปุ่มลูกศรซ้ายและขวา</p>
     <div class="table-scroll" role="region" aria-labelledby="order-list-heading" aria-describedby="table-help" tabindex="0">
       <table>
         <caption class="sr-only">รายการคำสั่งซื้อ พร้อมสถานะ สินค้า จำนวน ยอดชำระ และปุ่มดูรายละเอียด</caption>
@@ -67,11 +82,11 @@
                 <p>ยอดรวม {{ order.total | number:'1.2-2' }} + ค่าจัดส่ง {{ order.shipping | number:'1.2-2' }} − ส่วนลด {{ order.discount | number:'1.2-2' }} = รวมสุทธิ {{ order.net | number:'1.2-2' }}</p>
               </td>
             </tr>
-          } @empty {
-            <tr><td colspan="13" class="empty-state">ไม่พบคำสั่งซื้อที่ตรงกับคำค้นหา</td></tr>
           }
         </tbody>
       </table>
+    </div>
+    }
     </div>
   </section>
 </main>

@@ -1,5 +1,5 @@
 ﻿import { DecimalPipe } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 
 @Component({
   selector: 'app-order-list',
@@ -8,6 +8,27 @@ import { Component, computed, signal } from '@angular/core';
   styleUrl: './order-list.css',
 })
 export class OrderListComponent {
+  // Public so mock UI states can also be exercised with Angular DevTools.
+  readonly state = signal<'normal' | 'loading' | 'error'>('normal');
+  private readonly destroyRef = inject(DestroyRef);
+  private reloadTimer?: ReturnType<typeof setTimeout>;
+
+  constructor() {
+    this.destroyRef.onDestroy(() => clearTimeout(this.reloadTimer));
+  }
+
+  protected retry(searchInput: HTMLInputElement): void {
+    if (this.state() === 'loading') return;
+    this.state.set('loading');
+    this.expandedRow.set(null);
+    clearTimeout(this.reloadTimer);
+    // Simulate loading local mock data; no network request is made.
+    this.reloadTimer = setTimeout(() => {
+      this.state.set('normal');
+      searchInput.focus();
+    }, 600);
+  }
+
   protected readonly query = signal('');
   protected readonly expandedRow = signal<number | null>(null);
   protected readonly orders = [
