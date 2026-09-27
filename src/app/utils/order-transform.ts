@@ -15,11 +15,13 @@ export function calculateNetTotal(orders: readonly Order[]): number {
 
 /** Preserve first-seen group/item order and copy rows to avoid input aliases. */
 export function groupOrdersByNumber(orders: readonly Order[]): readonly OrderGroup[] {
-  const numbers = [...new Set(orders.map(order => order.number))];
-  return numbers.map((number): OrderGroup => {
-    const items = orders.filter(order => order.number === number).map(order => ({ ...order }));
-    return { number, items, netTotal: calculateNetTotal(items) };
-  });
+  const groups = new Map<string, Order[]>();
+  for (const order of orders) {
+    let items = groups.get(order.number);
+    if (!items) { items = []; groups.set(order.number, items); }
+    items.push({ ...order });
+  }
+  return Array.from(groups, ([number, items]) => ({ number, items, netTotal: calculateNetTotal(items) }));
 }
 
 /** Format YYYY-MM-DD HH:mm:ss as DD/MM/BBBB HH:mm น. without timezone conversion.

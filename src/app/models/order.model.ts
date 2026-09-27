@@ -34,6 +34,12 @@ export interface OrderQuery {
   readonly dateFrom?: string;
   readonly dateTo?: string;
   readonly status?: Order['status'];
-  /** One-based page; mock page size is 10. */
+  /** One-based page; legacy API defaults to 10, dashboard requests 50. */
   readonly page?: number;
+  readonly pageSize?: number;
+}
+
+export interface OrderPage {
+  readonly items: readonly Order[];
+  readonly total: number;
 }

@@ -1,0 +1,121 @@
+diff --git a/src/app/order-dashboard/order-dashboard.ts b/src/app/order-dashboard/order-dashboard.ts
+index 3c7502f..58a6b74 100644
+--- a/src/app/order-dashboard/order-dashboard.ts
++++ b/src/app/order-dashboard/order-dashboard.ts
+@@ -1,12 +1,13 @@
+ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+ import { buddhistDateToIso, buddhistDateValidator, dateRangeValidator, supportedStatusValidator } from '../utils/order-validators';
+ import { DecimalPipe } from '@angular/common';
+-import { Component, computed, DestroyRef, inject, OnInit, PendingTasks, signal, viewChild, ElementRef } from '@angular/core';
++import { afterEveryRender, Component, computed, DestroyRef, inject, OnInit, PendingTasks, signal, viewChild, ElementRef } from '@angular/core';
+ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+ import { catchError, timer, defer, filter, EMPTY, exhaustMap, finalize, map, merge, of, Subject, switchMap, takeUntil, tap } from 'rxjs';
+ import { OrderTableComponent } from '../components/order-table/order-table';
+ import type { Order, OrderTableRow } from '../models/order.model';
+ import { OrderService } from '../services/order.service';
++import { PerformanceMetrics } from '../services/performance-metrics';
+ import { calculateNetTotal, formatThaiDateTime, groupOrdersByNumber } from '../utils/order-transform';
+ 
+ @Component({
+@@ -17,6 +18,8 @@ import { calculateNetTotal, formatThaiDateTime, groupOrdersByNumber } from '../u
+ })
+ export class OrderDashboardComponent implements OnInit {
+   private readonly orderService = inject(OrderService);
++  private readonly metrics = inject(PerformanceMetrics);
++  private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
+   private readonly destroyRef = inject(DestroyRef);
+   private readonly pendingTasks = inject(PendingTasks);
+   private readonly orders = signal<readonly Order[]>([]);
+@@ -39,16 +42,20 @@ export class OrderDashboardComponent implements OnInit {
+   private readonly detailRequests = new Subject<number | null>();
+   private readonly statusRequests = new Subject<Order['status']>();
+   protected readonly filteredOrders = this.orders.asReadonly();
+-  protected readonly orderGroups = computed(() => groupOrdersByNumber(this.filteredOrders()));
++  protected readonly orderGroups = computed(() => this.metrics.measure('group', this.filteredOrders().length, () => groupOrdersByNumber(this.filteredOrders())));
+   protected readonly netTotal = computed(() => calculateNetTotal(this.filteredOrders()));
+   protected readonly displayOrders = computed<readonly OrderTableRow[]>(() =>
+-    this.filteredOrders().map(order => ({
++    this.metrics.measure('rows', this.filteredOrders().length, () => this.filteredOrders().map(order => ({
+       ...order,
+       net: calculateNetTotal([order]),
+       thaiDate: formatThaiDateTime(`${order.date} ${order.time}`),
+-    })),
++    }))),
+   );
+ 
++  constructor() {
++    afterEveryRender(() => this.metrics.rendered(this.element.nativeElement));
++  }
++
+   ngOnInit(): void {
+     this.detailRequests.pipe(
+       switchMap(id => {
+@@ -133,6 +140,7 @@ export class OrderDashboardComponent implements OnInit {
+           page: 1,
+         }).pipe(
+           tap(orders => {
++            this.metrics.beginRender();
+             this.orders.set(orders);
+             this.state.set('normal');
+             focus?.focus();
+diff --git a/src/app/services/mock-orders.interceptor.ts b/src/app/services/mock-orders.interceptor.ts
+index 5539e89..c7faa90 100644
+--- a/src/app/services/mock-orders.interceptor.ts
++++ b/src/app/services/mock-orders.interceptor.ts
+@@ -4,11 +4,14 @@ import { map, timer } from 'rxjs';
+ import { environment } from '../../environments/environment';
+ import { MOCK_ORDERS } from '../data/orders.mock';
+ import type { Order } from '../models/order.model';
++import { generatePerformanceOrders } from '../data/orders.performance';
++import { PerformanceMetrics } from './performance-metrics';
+ 
+ /** In-memory mock database; shared fixtures and pure-function inputs stay unchanged. */
+ @Injectable({ providedIn: 'root' })
+ export class MockOrderStore {
+-  private orders: readonly Order[] = MOCK_ORDERS.map(order => ({ ...order }));
++  private readonly metrics = inject(PerformanceMetrics);
++  private orders: readonly Order[] = this.metrics.enabled ? generatePerformanceOrders() : MOCK_ORDERS.map(order => ({ ...order }));
+   forceError = environment.mockApi.forceError;
+ 
+   list(search: string, status: string, page: number, dateFrom = '', dateTo = ''): readonly Order[] {
+@@ -17,9 +20,11 @@ export class MockOrderStore {
+       (!dateFrom || order.date >= dateFrom) && (!dateTo || order.date <= dateTo) &&
+       (!status || order.status === status) &&
+       (order.shop.toLowerCase().includes(query) || order.number.toLowerCase().includes(query)),
+-    ).slice((page - 1) * 10, page * 10).map(order => ({ ...order }));
++    ).slice((page - 1) * this.pageSize, page * this.pageSize).map(order => ({ ...order }));
+   }
+ 
++  private readonly pageSize = this.metrics.enabled ? 5000 : 10;
++
+   get(id: number): Order | undefined {
+     const order = this.orders.find(item => item.id === id);
+     return order ? { ...order } : undefined;
+@@ -38,6 +43,7 @@ export const mockOrdersInterceptor: HttpInterceptorFn = (request, next) => {
+     return next(request);
+   }
+   const store = inject(MockOrderStore);
++  inject(PerformanceMetrics).request(request.method, request.urlWithParams);
+   const fail = (status: number, message: string): never => {
+     throw new HttpErrorResponse({ status, url: request.urlWithParams, error: { message } });
+   };
+diff --git a/src/environments/environment.development.ts b/src/environments/environment.development.ts
+index 74539a3..c5d3697 100644
+--- a/src/environments/environment.development.ts
++++ b/src/environments/environment.development.ts
+@@ -1,4 +1,5 @@
+ export const environment = {
++  performanceTesting: true,
+   apiBaseUrl: '/api',
+   mockApi: { enabled: true, latencyMs: 600, forceError: false },
+ };
+diff --git a/src/environments/environment.ts b/src/environments/environment.ts
+index 74539a3..91c7a20 100644
+--- a/src/environments/environment.ts
++++ b/src/environments/environment.ts
+@@ -1,4 +1,5 @@
+ export const environment = {
++  performanceTesting: false,
+   apiBaseUrl: '/api',
+   mockApi: { enabled: true, latencyMs: 600, forceError: false },
+ };

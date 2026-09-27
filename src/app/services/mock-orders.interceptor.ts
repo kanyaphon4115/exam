@@ -4,20 +4,28 @@ import { map, timer } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { MOCK_ORDERS } from '../data/orders.mock';
 import type { Order } from '../models/order.model';
+import { generatePerformanceOrders } from '../data/orders.performance';
+import { PerformanceMetrics } from './performance-metrics';
 
 /** In-memory mock database; shared fixtures and pure-function inputs stay unchanged. */
 @Injectable({ providedIn: 'root' })
 export class MockOrderStore {
-  private orders: readonly Order[] = MOCK_ORDERS.map(order => ({ ...order }));
+  private readonly metrics = inject(PerformanceMetrics);
+  private orders: readonly Order[] = this.metrics.enabled ? generatePerformanceOrders() : MOCK_ORDERS.map(order => ({ ...order }));
   forceError = environment.mockApi.forceError;
 
-  list(search: string, status: string, page: number, dateFrom = '', dateTo = ''): readonly Order[] {
+  matching(search: string, status: string, dateFrom = '', dateTo = ''): readonly Order[] {
     const query = search.trim().toLowerCase();
     return this.orders.filter(order =>
       (!dateFrom || order.date >= dateFrom) && (!dateTo || order.date <= dateTo) &&
       (!status || order.status === status) &&
       (order.shop.toLowerCase().includes(query) || order.number.toLowerCase().includes(query)),
-    ).slice((page - 1) * 10, page * 10).map(order => ({ ...order }));
+    );
+  }
+
+  list(search: string, status: string, page: number, dateFrom = '', dateTo = '', pageSize = 10): readonly Order[] {
+    return this.matching(search, status, dateFrom, dateTo)
+      .slice((page - 1) * pageSize, page * pageSize).map(order => ({ ...order }));
   }
 
   get(id: number): Order | undefined {
@@ -38,6 +46,7 @@ export const mockOrdersInterceptor: HttpInterceptorFn = (request, next) => {
     return next(request);
   }
   const store = inject(MockOrderStore);
+  inject(PerformanceMetrics).request(request.method, request.urlWithParams);
   const fail = (status: number, message: string): never => {
     throw new HttpErrorResponse({ status, url: request.urlWithParams, error: { message } });
   };
@@ -47,10 +56,16 @@ export const mockOrdersInterceptor: HttpInterceptorFn = (request, next) => {
     if (!suffix && request.method === 'GET') {
       const urlParams = new URLSearchParams(request.urlWithParams.split('?')[1] ?? '');
       const page = Number(urlParams.get('page') ?? 1);
+      const pageSize = Number(urlParams.get('pageSize') ?? 10);
       const status = urlParams.get('status') ?? '';
       if (!Number.isInteger(page) || page < 1) return fail(400, 'Invalid page');
+      if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 50) return fail(400, 'Invalid page size');
       if (status && status !== 'ชำระเงินแล้ว' && status !== 'ส่งของแล้ว') return fail(400, 'Invalid status');
-      return new HttpResponse({ status: 200, body: store.list(urlParams.get('search') ?? '', status, page, urlParams.get('dateFrom') ?? '', urlParams.get('dateTo') ?? '') });
+      const matches = store.matching(urlParams.get('search') ?? '', status, urlParams.get('dateFrom') ?? '', urlParams.get('dateTo') ?? '');
+      return new HttpResponse({ status: 200,
+        headers: { 'X-Total-Count': String(matches.length) },
+        body: matches.slice((page - 1) * pageSize, page * pageSize).map(order => ({ ...order })),
+      });
     }
     const match = /^\/(\d+)(\/status)?$/.exec(suffix);
     if (!match) return fail(404, 'Unknown endpoint');

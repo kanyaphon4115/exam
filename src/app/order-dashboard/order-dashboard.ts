@@ -1,12 +1,13 @@
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { buddhistDateToIso, buddhistDateValidator, dateRangeValidator, supportedStatusValidator } from '../utils/order-validators';
 import { DecimalPipe } from '@angular/common';
-import { Component, computed, DestroyRef, inject, OnInit, PendingTasks, signal, viewChild, ElementRef } from '@angular/core';
+import { afterEveryRender, ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, PendingTasks, signal, viewChild, ElementRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, timer, defer, filter, EMPTY, exhaustMap, finalize, map, merge, of, Subject, switchMap, takeUntil, tap } from 'rxjs';
 import { OrderTableComponent } from '../components/order-table/order-table';
-import type { Order, OrderTableRow } from '../models/order.model';
+import type { Order, OrderQuery, OrderTableRow } from '../models/order.model';
 import { OrderService } from '../services/order.service';
+import { PerformanceMetrics } from '../services/performance-metrics';
 import { calculateNetTotal, formatThaiDateTime, groupOrdersByNumber } from '../utils/order-transform';
 
 @Component({
@@ -14,9 +15,12 @@ import { calculateNetTotal, formatThaiDateTime, groupOrdersByNumber } from '../u
   imports: [DecimalPipe, OrderTableComponent, ReactiveFormsModule],
   templateUrl: './order-dashboard.html',
   styleUrl: './order-dashboard.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OrderDashboardComponent implements OnInit {
   private readonly orderService = inject(OrderService);
+  private readonly metrics = inject(PerformanceMetrics);
+  private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
   private readonly pendingTasks = inject(PendingTasks);
   private readonly orders = signal<readonly Order[]>([]);
@@ -28,9 +32,12 @@ export class OrderDashboardComponent implements OnInit {
     dateTo: new FormControl('', { nonNullable: true, validators: [buddhistDateValidator] }),
   }, { validators: dateRangeValidator });
   private query = '';
-  private appliedSearch = '';
+  private appliedQuery: OrderQuery | null = null;
+  protected readonly page = signal(1);
+  protected readonly total = signal(0);
+  protected readonly pageCount = computed(() => Math.max(1, Math.ceil(this.total() / 50)));
   private readonly searchTerms = new Subject<string>();
-  private readonly reload = new Subject<HTMLInputElement>();
+  private readonly reload = new Subject<{ focus?: HTMLInputElement; refresh: boolean; query?: OrderQuery }>();
   private finishDebounce?: () => void;
   protected readonly expandedRow = signal<number | null>(null);
   protected readonly detail = signal<OrderTableRow | null>(null);
@@ -39,15 +46,19 @@ export class OrderDashboardComponent implements OnInit {
   private readonly detailRequests = new Subject<number | null>();
   private readonly statusRequests = new Subject<Order['status']>();
   protected readonly filteredOrders = this.orders.asReadonly();
-  protected readonly orderGroups = computed(() => groupOrdersByNumber(this.filteredOrders()));
+  protected readonly orderGroups = computed(() => this.metrics.measure('group', this.filteredOrders().length, () => groupOrdersByNumber(this.filteredOrders())));
   protected readonly netTotal = computed(() => calculateNetTotal(this.filteredOrders()));
   protected readonly displayOrders = computed<readonly OrderTableRow[]>(() =>
-    this.filteredOrders().map(order => ({
+    this.metrics.measure('rows', this.filteredOrders().length, () => this.filteredOrders().map(order => ({
       ...order,
       net: calculateNetTotal([order]),
       thaiDate: formatThaiDateTime(`${order.date} ${order.time}`),
-    })),
+    }))),
   );
+
+  constructor() {
+    afterEveryRender(() => this.metrics.rendered(this.element.nativeElement));
+  }
 
   ngOnInit(): void {
     this.detailRequests.pipe(
@@ -108,32 +119,30 @@ export class OrderDashboardComponent implements OnInit {
         this.finishDebounce?.();
         this.finishDebounce = undefined;
       }),
-      filter(search => search !== this.appliedSearch),
-      map(search => ({ search, focus: undefined as HTMLInputElement | undefined })),
+      map(search => ({ query: this.filterQuery(search), refresh: false, focus: undefined as HTMLInputElement | undefined })),
     );
     merge(
-      of({ search: '', focus: undefined as HTMLInputElement | undefined }),
+      of({ query: this.filterQuery(''), refresh: false, focus: undefined as HTMLInputElement | undefined }),
       searches,
-      this.reload.pipe(map(focus => ({ search: this.query, focus }))),
+      this.reload.pipe(map(event => ({ ...event, query: event.query ?? this.filterQuery(this.query) }))),
     ).pipe(
       filter(() => this.filterForm.valid),
-      switchMap(({ search, focus }) => defer(() => {
-        this.appliedSearch = search;
+      // Compare the whole normalized query, including page, across every trigger.
+      // Retry/refresh and recovery after an error intentionally bypass this guard.
+      filter(({ query, refresh }) => refresh || this.state() === 'error' || JSON.stringify(query) !== JSON.stringify(this.appliedQuery)),
+      switchMap(({ query, focus, refresh }) => defer(() => {
+        this.appliedQuery = query;
+        this.page.set(query.page ?? 1);
         this.state.set('loading');
         this.detailRequests.next(null);
         const done = this.pendingTasks.add();
         this.finishDebounce?.();
         this.finishDebounce = undefined;
-        const { status, dateFrom, dateTo } = this.filterForm.getRawValue();
-        return this.orderService.getOrders({
-          search,
-          ...(status ? { status: status as Order['status'] } : {}),
-          ...(dateFrom ? { dateFrom: buddhistDateToIso(dateFrom)! } : {}),
-          ...(dateTo ? { dateTo: buddhistDateToIso(dateTo)! } : {}),
-          page: 1,
-        }).pipe(
-          tap(orders => {
-            this.orders.set(orders);
+        return this.orderService.getOrdersPage(query, refresh).pipe(
+          tap(result => {
+            this.metrics.beginRender();
+            this.orders.set(result.items);
+            this.total.set(result.total);
             this.state.set('normal');
             focus?.focus();
           }),
@@ -155,13 +164,17 @@ export class OrderDashboardComponent implements OnInit {
     this.filterForm.markAllAsTouched();
     if (this.filterForm.invalid) return;
     this.query = this.filterForm.controls.search.value.toLowerCase();
-    this.reload.next(searchInput);
+    this.finishDebounce?.();
+    this.finishDebounce = undefined;
+    this.reload.next({ focus: searchInput, refresh: false });
   }
 
   protected resetFilters(searchInput: HTMLInputElement): void {
     this.filterForm.reset();
     this.query = '';
-    this.reload.next(searchInput);
+    this.finishDebounce?.();
+    this.finishDebounce = undefined;
+    this.reload.next({ focus: searchInput, refresh: true });
   }
 
   private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
@@ -171,7 +184,25 @@ export class OrderDashboardComponent implements OnInit {
   }
 
   protected retry(searchInput: HTMLInputElement): void {
-    if (this.state() !== 'loading' && this.filterForm.valid) this.reload.next(searchInput);
+    if (this.state() !== 'loading' && this.filterForm.valid) {
+      this.reload.next({ focus: searchInput, refresh: true, query: this.appliedQuery ?? undefined });
+    }
+  }
+
+  protected changePage(page: number): void {
+    if (this.state() === 'loading' || this.filterForm.invalid || page < 1 || page > this.pageCount() || !this.appliedQuery) return;
+    this.reload.next({ refresh: false, query: { ...this.appliedQuery, page } });
+  }
+
+  private filterQuery(search: string): OrderQuery {
+    const { status, dateFrom, dateTo } = this.filterForm.getRawValue();
+    return {
+      search,
+      ...(status ? { status: status as Order['status'] } : {}),
+      ...(dateFrom ? { dateFrom: buddhistDateToIso(dateFrom)! } : {}),
+      ...(dateTo ? { dateTo: buddhistDateToIso(dateTo)! } : {}),
+      page: 1,
+    };
   }
 
   protected search(value: string): void {

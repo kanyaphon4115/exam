@@ -51,7 +51,7 @@
         กำลังโหลดข้อมูล...
       } @else if (state() === 'normal') {
         @if (filteredOrders().length === 0) { ไม่พบรายการคำสั่งซื้อ }
-        @else { พบ {{ filteredOrders().length }} รายการ }
+        @else { พบ {{ total() }} รายการ หน้า {{ page() }} จาก {{ pageCount() }} }
       }
     </p>
     <p role="alert" aria-atomic="true" [class.state-message]="state() === 'error'" [class.error-message]="state() === 'error'" [class.sr-only]="state() !== 'error'">
@@ -60,6 +60,12 @@
     @if (state() === 'error' || state() === 'loading') {
       <button type="button" (click)="retrySearch()" [attr.aria-disabled]="state() === 'loading'">ลองใหม่</button>
     }
+    <nav class="pagination" aria-label="หน้ารายการคำสั่งซื้อ">
+      <button type="button" (click)="changePage(page() - 1)" [disabled]="page() <= 1 || state() === 'loading' || filterForm.invalid">หน้าก่อนหน้า</button>
+      <span aria-live="polite" aria-atomic="true">หน้า {{ page() }} จาก {{ pageCount() }} · {{ total() }} รายการ</span>
+      <button type="button" (click)="changePage(page() + 1)" [disabled]="page() >= pageCount() || state() === 'loading' || filterForm.invalid">หน้าถัดไป</button>
+      <button type="button" (click)="retrySearch()" [disabled]="state() === 'loading' || filterForm.invalid">รีเฟรชรายการ</button>
+    </nav>
     <div [attr.aria-busy]="state() === 'loading'">
     @if (state() === 'normal' && filteredOrders().length > 0) {
     <app-order-table tableId="dashboard-orders" [orders]="displayOrders()" [expandedRow]="expandedRow()"
@@ -67,7 +73,7 @@
       (detailsRequested)="toggleDetails($event)" (detailRetry)="retryDetails()" (statusRequested)="saveStatus($event)" />
     <section class="order-summary" aria-labelledby="summary-heading">
       <h3 id="summary-heading">สรุปตามหมายเลขคำสั่งซื้อ</h3>
-      <p>สรุปจากรายการที่ตรงกับคำค้นหา</p>
+      <p>สรุปจากรายการในหน้านี้ (ไม่เกิน 50 รายการ)</p>
       <dl>
         @for (group of orderGroups(); track group.number) {
           <div>

@@ -181,37 +181,10 @@ GET ใช้ retry count 2 เฉพาะ network error (status 0) และ H
 
 ## ข้อ 6: Form, Validation และ State
 
-- ใช้ Angular Reactive Forms (`FormGroup`, `FormControl`, `Validators`) ทั้ง Filter และ Update Status ไม่มี `ngModel`
-- Filter รองรับ Search / Status / Date Range พร้อมปุ่มค้นหาและล้างตัวกรอง ส่งค่าผ่าน `OrderService` ซึ่งสร้าง `HttpParams` รวม `dateFrom`, `dateTo` และ `page`
-- Search เป็น optional, trim ก่อน submit/ส่ง API และจำกัด 100 ตัวอักษร; Status ตัวกรองเป็น optional และรับเฉพาะสถานะที่ระบบรองรับ
-- Date Range เป็น optional ทั้งสองช่อง กรอกเป็น `วัน/เดือน/ปี พ.ศ.` เช่น `01/02/2564` และ `27/09/2569` โดยแสดงรูปแบบเดียวกันทุกเบราว์เซอร์ ตรวจวันที่จริงรวมปีอธิกสุรทิน แล้วลบ 543 จากปีเพื่อส่ง API เป็น ค.ศ. รูปแบบ `YYYY-MM-DD` ใช้ group validator เปรียบเทียบวันที่ที่แปลงแล้ว เมื่อกรอกครบและ `dateFrom > dateTo` ฟอร์ม invalid และแสดง “วันที่เริ่มต้นต้องไม่มากกว่าวันที่สิ้นสุด” วันที่เท่ากันใช้ได้
-- เมื่อ invalid จะปิดปุ่มค้นหาและตรวจซ้ำใน submit/request pipeline เพื่อไม่เรียก API
-- คงการค้นหาอัตโนมัติหลังหยุดพิมพ์ 300ms จากข้อ 5 โดยใช้ `switchMap` + `timer` เพื่อให้ submit/reset ยกเลิก debounce ที่ค้างได้ ไม่เรียกซ้ำสำหรับคำค้นที่ใช้อยู่ และยกเลิก GET เก่าเมื่อเริ่ม request ใหม่
-- Mock API ใช้ทุกเงื่อนไขร่วมกัน รวมวันที่ขอบเขตทั้งสองวัน และกรองก่อนแบ่งหน้า ปุ่มล้างตัวกรอง reset form แล้วโหลดรายการเริ่มต้นใหม่
-- Update Status มี `Validators.required` และตรวจสถานะที่รองรับ เมื่อว่างแสดง “กรุณาเลือกสถานะสินค้า” และไม่ส่ง PATCH
-- ป้องกัน Double Submit ด้วย Saving State และ `exhaustMap`; ระหว่าง request ปิด select/ปุ่มและแสดง “กำลังบันทึก...” ใช้ `finalize()` คืน Saving State หลังสำเร็จ ล้มเหลว หรือยกเลิก request
-- เก็บ Order เดิมใน request closure และไม่เปลี่ยนรายการ/รายละเอียดก่อน PATCH สำเร็จ เมื่อสำเร็จใช้ response อัปเดตทั้งรายการ รายละเอียด และ Status Badge โดยไม่ reload หน้า พร้อม “อัปเดตสถานะสำเร็จ”
-- ถ้า PATCH ล้มเหลว ข้อมูลเดิมยังอยู่ และ Status Form reset กลับเป็นค่าของ Order เดิม พร้อม “ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง” ผู้ใช้เลือกสถานะแล้วลองใหม่ได้
-- ใช้ state เดิม (`state`, `detailState`, `saveState`) และ validation จาก Form โดยตรง ไม่เพิ่ม boolean ซ้ำซ้อน ข้อผิดพลาด GET/PATCH เป็นภาษาไทย ไม่แสดง raw error
-- ทุกช่องมี label; validation เชื่อมด้วย `aria-describedby` และ `aria-invalid`; Error ใช้ `role="alert"`, Loading/Success ใช้ `role="status"` รองรับ keyboard และ responsive 1440/768/360px
+## ข้อ 6: Form, Validation และ State
 
-### ไฟล์ที่เกี่ยวข้อง
-
-| หน้าที่ | ไฟล์ |
-| --- | --- |
-| Filter Reactive Form และ request/state orchestration | `src/app/order-dashboard/order-dashboard.ts` |
-| Filter fields, errors และ responsive | `src/app/order-dashboard/order-dashboard.html`, `order-dashboard.css` |
-| Reusable Update Status Reactive Form (รับ input/ส่ง output ไม่มี HttpClient) | `src/app/components/order-status-form/order-status-form.ts`, `order-status-form.html` |
-| Date Range / Supported Status validators | `src/app/utils/order-validators.ts` |
-| Query model, HttpParams และ Mock filters | `src/app/models/order.model.ts`, `src/app/services/order.service.ts`, `src/app/services/mock-orders.interceptor.ts` |
-| Filter validation / submit / reset / debounce tests | `src/app/order-dashboard/order-filter.spec.ts` |
-| Required / double submit / success / rollback tests | `src/app/components/order-status-form/order-status-form.spec.ts`, `src/app/order-dashboard/order-dashboard-api.spec.ts` |
-| GET/error/retry และ API filter tests | `src/app/order-dashboard/order-dashboard.spec.ts`, `src/app/services/order.service.spec.ts`, `src/app/services/mock-orders.interceptor.spec.ts` |
-
-### ผลตรวจสอบข้อ 6
-
-- `npm test -- --watch=false` (`ng test --watch=false`): ผ่าน 54 tests ใน 11 ไฟล์ ครอบคลุม regression tests เดิม รวมการแปลง พ.ศ. เป็น ค.ศ., วันที่ที่ไม่มีจริง และช่วงวันที่ พ.ศ.
-- `npm run build` (`ng build`): ผ่าน
-- ตรวจด้วย headless browser ที่ 1440/768/360px: ฟอร์มแสดงครบและไม่ล้น viewport
-- ตรวจ combined filters, invalid date range, reset และ PATCH success ผ่านหน้าเว็บ; ตรวจ PATCH error/rollback และ double submit ด้วย HTTP integration tests
-- Mock API เป็น interceptor ภายในแอป ข้อมูลสถานะเก็บในหน่วยความจำและกลับเป็น fixture เมื่อ reload หน้า
+ใช้ Angular Reactive Forms สำหรับ Filter และการอัปเดตสถานะคำสั่งซื้อ
+- วันที่เริ่มต้นมากกว่าวันที่สิ้นสุด → แสดง Validation Error และไม่เรียก API
+- ไม่เลือกสถานะ → แสดงข้อความ "กรุณาเลือกสถานะสินค้า"
+- ระหว่างบันทึก → Disable ปุ่มเพื่อป้องกันการกดซ้ำ
+- PATCH API ล้มเหลว → คืนสถานะเดิมและแสดงข้อความ Error

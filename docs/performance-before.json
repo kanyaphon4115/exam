@@ -1,0 +1,116 @@
+{
+  "all": {
+    "apiCalls": [
+      {
+        "method": "GET",
+        "url": "/api/orders?search=&page=1"
+      },
+      {
+        "method": "GET",
+        "url": "/api/orders?search=&page=1"
+      },
+      {
+        "method": "GET",
+        "url": "/api/orders?search=&page=1"
+      },
+      {
+        "method": "GET",
+        "url": "/api/orders?search=icomputer&page=1"
+      },
+      {
+        "method": "GET",
+        "url": "/api/orders/2"
+      },
+      {
+        "method": "GET",
+        "url": "/api/orders/2"
+      }
+    ],
+    "renders": [
+      {
+        "ms": 1728,
+        "orderRows": 5000,
+        "tableRows": 10000
+      },
+      {
+        "ms": 1539.60000000149,
+        "orderRows": 5000,
+        "tableRows": 10000
+      },
+      {
+        "ms": 832.9000000059605,
+        "orderRows": 3333,
+        "tableRows": 6666
+      }
+    ],
+    "transforms": [
+      {
+        "count": 5000,
+        "ms": 24,
+        "name": "rows"
+      },
+      {
+        "count": 5000,
+        "ms": 697,
+        "name": "group"
+      },
+      {
+        "count": 5000,
+        "ms": 30.899999998509884,
+        "name": "rows"
+      },
+      {
+        "count": 5000,
+        "ms": 585.8999999985099,
+        "name": "group"
+      },
+      {
+        "count": 3333,
+        "ms": 16.099999994039536,
+        "name": "rows"
+      },
+      {
+        "count": 3333,
+        "ms": 247.10000000149012,
+        "name": "group"
+      }
+    ]
+  },
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+  "dataset": 5000,
+  "initial": {
+    "apiCalls": [
+      {
+        "method": "GET",
+        "url": "/api/orders?search=&page=1"
+      }
+    ],
+    "renders": [
+      {
+        "ms": 1728,
+        "orderRows": 5000,
+        "tableRows": 10000
+      }
+    ],
+    "transforms": [
+      {
+        "count": 5000,
+        "ms": 24,
+        "name": "rows"
+      },
+      {
+        "count": 5000,
+        "ms": 697,
+        "name": "group"
+      }
+    ]
+  },
+  "rapidSearchCalls": 1,
+  "repeatedDetailCalls": 2,
+  "repeatedSubmitCalls": 2,
+  "timestamp": "2026-09-27T08:21:50.164Z",
+  "viewport": {
+    "height": 900,
+    "width": 1440
+  }
+}

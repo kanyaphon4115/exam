@@ -35,10 +35,11 @@
               <td class="numeric">{{ order.discount | number:'1.2-2' }}</td>
               <td class="numeric">{{ order.net | number:'1.2-2' }}</td>
               <td><button type="button" [attr.aria-label]="'ดูรายละเอียดคำสั่งซื้อ ' + order.number + ' รายการ ' + order.item"
-                [attr.aria-expanded]="expandedRow() === order.id" [attr.aria-controls]="tableId() + '-details-' + order.id"
+                [attr.aria-expanded]="expandedRow() === order.id" [attr.aria-controls]="expandedRow() === order.id ? tableId() + '-details-' + order.id : null"
                 (click)="detailsRequested.emit(order.id)">ดูรายละเอียด</button></td>
             </tr>
-            <tr [id]="tableId() + '-details-' + order.id" [hidden]="expandedRow() !== order.id" class="details-row">
+            @if (expandedRow() === order.id) {
+            <tr [id]="tableId() + '-details-' + order.id" class="details-row">
               <td colspan="13">
                 @if (expandedRow() === order.id) {
                   <p role="status" aria-atomic="true">
@@ -63,6 +64,7 @@
                 }
               </td>
             </tr>
+            }
           }
         </tbody>
       </table>
