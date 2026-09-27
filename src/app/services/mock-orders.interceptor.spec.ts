@@ -24,6 +24,23 @@ describe('Mock orders API', () => {
     expect(result).toHaveBeenLastCalledWith([]);
   });
 
+  it('combines all filters and includes date boundaries before pagination', () => {
+    const result = vi.fn();
+    const service = TestBed.inject(OrderService);
+    service.getOrders({ search: 'Icomputer', status: 'ส่งของแล้ว', dateFrom: '2020-11-11', dateTo: '2020-11-11' }).subscribe(result);
+    vi.advanceTimersByTime(environment.mockApi.latencyMs);
+    expect(result.mock.calls[0][0].map((order: { id: number }) => order.id)).toEqual([4, 5]);
+    service.getOrders({ search: 'Icomputer', status: 'ชำระเงินแล้ว', dateFrom: '2020-01-01', dateTo: '2020-12-31' }).subscribe(result);
+    vi.advanceTimersByTime(environment.mockApi.latencyMs);
+    expect(result).toHaveBeenLastCalledWith([]);
+    service.getOrders({ dateFrom: '2021-01-01' }).subscribe(result);
+    vi.advanceTimersByTime(environment.mockApi.latencyMs);
+    expect(result.mock.calls[2][0].map((order: { id: number }) => order.id)).toEqual([2]);
+    service.getOrders({ dateTo: '2020-11-10' }).subscribe(result);
+    vi.advanceTimersByTime(environment.mockApi.latencyMs);
+    expect(result).toHaveBeenLastCalledWith([]);
+  });
+
   it('persists PATCH in memory and returns copies without mutating fixtures', () => {
     const service = TestBed.inject(OrderService);
     const result = vi.fn();

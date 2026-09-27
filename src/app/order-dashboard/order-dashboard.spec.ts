@@ -76,7 +76,7 @@ describe('Order List transformations', () => {
     first.error(new Error('Test service failure'));
     await fixture.whenStable();
     expect(page.querySelector('[role="alert"]')?.textContent).toContain('ไม่สามารถโหลดข้อมูลได้');
-    page.querySelector('button')!.click();
+    page.querySelector<HTMLButtonElement>('section.card > button')!.click();
     fixture.detectChanges();
     expect(getOrders).toHaveBeenCalledTimes(2);
     expect(page.querySelector('[aria-busy]')?.getAttribute('aria-busy')).toBe('true');

@@ -35,6 +35,14 @@ describe('OrderService HTTP contract', () => {
     request.flush([]);
   });
 
+  it('sends both date boundaries as HttpParams', () => {
+    service.getOrders({ dateFrom: '2020-01-01', dateTo: '2020-12-31' }).subscribe();
+    const request = http.expectOne(req => req.url === url);
+    expect(request.request.params.get('dateFrom')).toBe('2020-01-01');
+    expect(request.request.params.get('dateTo')).toBe('2020-12-31');
+    request.flush([]);
+  });
+
   it('GETs a single row by its unique ID', () => {
     service.getOrder(4).subscribe();
     const request = http.expectOne(`${url}/4`);

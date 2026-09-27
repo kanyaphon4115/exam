@@ -149,9 +149,7 @@ OrderService เป็นแหล่งข้อมูล Order และส่
 | GET | /api/orders/4 | Order ของแถว ID 4 |
 | PATCH | /api/orders/4/status | รับ { "status": "ส่งของแล้ว" } และคืน Order ที่อัปเดต |
 
-ID เป็น ID ของแถว (2/4/5) ไม่ใช่หมายเลขคำสั่งซื้อที่อาจซ้ำกัน Mock คืนข้อมูลหลัง 600ms ใช้ page เริ่มที่ 1 ขนาดหน้าละ 10 รายการ และคืน [] เมื่อไม่มีผลลัพธ์ การแก้สถานะอยู่ในหน่วยความจำจนกว่าจะรีโหลด ไม่แก้ข้อมูลต้นฉบับ MOCK_ORDERS คืน 400 สำหรับพารามิเตอร์ผิด, 404 เมื่อไม่พบ และ 405 เมื่อ method ไม่รองรับ
 
-UI ปัจจุบันเรียกรายการที่ page 1 และสรุปยอดจากรายการที่ API คืนมาในหน้านั้น ปุ่มดูรายละเอียดเรียก GET /api/orders/:id และแสดงเฉพาะข้อมูลตอบกลับจาก API ส่วนฟอร์มสถานะเรียก PATCH /api/orders/:id/status โดยยังไม่ได้เพิ่ม UI pagination/status filter
 
 ### RxJS Operators
 
@@ -181,26 +179,39 @@ GET ใช้ retry count 2 เฉพาะ network error (status 0) และ H
 4. จำลอง API Error โดยตั้ง mockApi.forceError เป็น true ใน environment.development.ts แล้วเปิดหน้าใหม่ จะ retry สูงสุด 2 ครั้งก่อนแสดง Error ตั้งกลับ false เพื่อใช้งานปกติ Tests ครอบคลุม Error → ลองใหม่ และค้นหาต่อหลัง Error
 5. รัน npm test -- --watch=false และ npm run build
 
-Mock interceptor ตอบ HttpClient ภายในแอป จึงไม่มี request /api/orders ออกไปจริงใน DevTools Network และการเปิด URL API ตรง ๆ ไม่ได้เรียก Mock layer นี้ ตรวจสัญญา HTTP ได้จาก tests ที่ใช้ HttpTestingController
+## ข้อ 6: Form, Validation และ State
 
-เมื่อมี Backend ให้ตั้ง mockApi.enabled เป็น false และเปลี่ยน apiBaseUrl ใน environment ที่ใช้ โดย Backend ต้องรองรับ response ตาม API Contract หากคนละ origin ให้ตั้ง CORS ฝั่ง Backend ไม่ต้องเปลี่ยน URL ใน Component ตอนนี้ทั้ง development และ production เปิด Mock เพื่อให้รันได้โดยไม่มี Backend ไม่มี Token/API key ใน environment
+- ใช้ Angular Reactive Forms (`FormGroup`, `FormControl`, `Validators`) ทั้ง Filter และ Update Status ไม่มี `ngModel`
+- Filter รองรับ Search / Status / Date Range พร้อมปุ่มค้นหาและล้างตัวกรอง ส่งค่าผ่าน `OrderService` ซึ่งสร้าง `HttpParams` รวม `dateFrom`, `dateTo` และ `page`
+- Search เป็น optional, trim ก่อน submit/ส่ง API และจำกัด 100 ตัวอักษร; Status ตัวกรองเป็น optional และรับเฉพาะสถานะที่ระบบรองรับ
+- Date Range เป็น optional ทั้งสองช่อง กรอกเป็น `วัน/เดือน/ปี พ.ศ.` เช่น `01/02/2564` และ `27/09/2569` โดยแสดงรูปแบบเดียวกันทุกเบราว์เซอร์ ตรวจวันที่จริงรวมปีอธิกสุรทิน แล้วลบ 543 จากปีเพื่อส่ง API เป็น ค.ศ. รูปแบบ `YYYY-MM-DD` ใช้ group validator เปรียบเทียบวันที่ที่แปลงแล้ว เมื่อกรอกครบและ `dateFrom > dateTo` ฟอร์ม invalid และแสดง “วันที่เริ่มต้นต้องไม่มากกว่าวันที่สิ้นสุด” วันที่เท่ากันใช้ได้
+- เมื่อ invalid จะปิดปุ่มค้นหาและตรวจซ้ำใน submit/request pipeline เพื่อไม่เรียก API
+- คงการค้นหาอัตโนมัติหลังหยุดพิมพ์ 300ms จากข้อ 5 โดยใช้ `switchMap` + `timer` เพื่อให้ submit/reset ยกเลิก debounce ที่ค้างได้ ไม่เรียกซ้ำสำหรับคำค้นที่ใช้อยู่ และยกเลิก GET เก่าเมื่อเริ่ม request ใหม่
+- Mock API ใช้ทุกเงื่อนไขร่วมกัน รวมวันที่ขอบเขตทั้งสองวัน และกรองก่อนแบ่งหน้า ปุ่มล้างตัวกรอง reset form แล้วโหลดรายการเริ่มต้นใหม่
+- Update Status มี `Validators.required` และตรวจสถานะที่รองรับ เมื่อว่างแสดง “กรุณาเลือกสถานะสินค้า” และไม่ส่ง PATCH
+- ป้องกัน Double Submit ด้วย Saving State และ `exhaustMap`; ระหว่าง request ปิด select/ปุ่มและแสดง “กำลังบันทึก...” ใช้ `finalize()` คืน Saving State หลังสำเร็จ ล้มเหลว หรือยกเลิก request
+- เก็บ Order เดิมใน request closure และไม่เปลี่ยนรายการ/รายละเอียดก่อน PATCH สำเร็จ เมื่อสำเร็จใช้ response อัปเดตทั้งรายการ รายละเอียด และ Status Badge โดยไม่ reload หน้า พร้อม “อัปเดตสถานะสำเร็จ”
+- ถ้า PATCH ล้มเหลว ข้อมูลเดิมยังอยู่ และ Status Form reset กลับเป็นค่าของ Order เดิม พร้อม “ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง” ผู้ใช้เลือกสถานะแล้วลองใหม่ได้
+- ใช้ state เดิม (`state`, `detailState`, `saveState`) และ validation จาก Form โดยตรง ไม่เพิ่ม boolean ซ้ำซ้อน ข้อผิดพลาด GET/PATCH เป็นภาษาไทย ไม่แสดง raw error
+- ทุกช่องมี label; validation เชื่อมด้วย `aria-describedby` และ `aria-invalid`; Error ใช้ `role="alert"`, Loading/Success ใช้ `role="status"` รองรับ keyboard และ responsive 1440/768/360px
 
-ผลตรวจข้อ 5 ฉบับสมบูรณ์: Unit Tests ผ่าน 41/41 รวม Pure Functions เดิม, HTTP contract, retry limit, cancellation, UI GET รายละเอียด และ UI PATCH สถานะ; production build ผ่าน
+### ไฟล์ที่เกี่ยวข้อง
 
-### รายละเอียดและการบันทึกสถานะบน UI
+| หน้าที่ | ไฟล์ |
+| --- | --- |
+| Filter Reactive Form และ request/state orchestration | `src/app/order-dashboard/order-dashboard.ts` |
+| Filter fields, errors และ responsive | `src/app/order-dashboard/order-dashboard.html`, `order-dashboard.css` |
+| Reusable Update Status Reactive Form (รับ input/ส่ง output ไม่มี HttpClient) | `src/app/components/order-status-form/order-status-form.ts`, `order-status-form.html` |
+| Date Range / Supported Status validators | `src/app/utils/order-validators.ts` |
+| Query model, HttpParams และ Mock filters | `src/app/models/order.model.ts`, `src/app/services/order.service.ts`, `src/app/services/mock-orders.interceptor.ts` |
+| Filter validation / submit / reset / debounce tests | `src/app/order-dashboard/order-filter.spec.ts` |
+| Required / double submit / success / rollback tests | `src/app/components/order-status-form/order-status-form.spec.ts`, `src/app/order-dashboard/order-dashboard-api.spec.ts` |
+| GET/error/retry และ API filter tests | `src/app/order-dashboard/order-dashboard.spec.ts`, `src/app/services/order.service.spec.ts`, `src/app/services/mock-orders.interceptor.spec.ts` |
 
-- กด **ดูรายละเอียด**: OrderTable ส่ง output ให้ Dashboard เรียก `OrderService.getOrderById(id)` ผ่าน HttpClient ระหว่างรอแสดง “กำลังโหลดรายละเอียด...” และเมื่อสำเร็จแสดงข้อมูล API แทนการใช้ row เดิม
-- หาก GET รายละเอียดล้มเหลว แสดง “ไม่สามารถโหลดรายละเอียดคำสั่งซื้อได้ กรุณาลองใหม่อีกครั้ง” พร้อมปุ่มลองใหม่ GET มี retry จำกัดเหมือนรายการ
-- เลือกสถานะในฟอร์มที่มี label แล้วกด **บันทึกสถานะ**: ส่ง PATCH พร้อม status ระหว่างรอปิด select/ปุ่มและแสดง “กำลังบันทึก...”
-- สำเร็จ: แสดง “อัปเดตสถานะสำเร็จ” และใช้ response อัปเดตตารางกับรายละเอียดแบบ immutable โดยไม่ reload ทั้งหน้า Mock เก็บค่าใหม่ไว้ให้ GET ครั้งถัดไปจนกว่าจะรีโหลดแอป
-- ล้มเหลว: แสดง “ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง” คงสถานะเดิมในรายการไว้ และให้กดบันทึกใหม่เอง ไม่มี automatic retry สำหรับ PATCH
-- ใช้ `exhaustMap` ป้องกัน PATCH ซ้อนจากการกดซ้ำ, `switchMap` ยกเลิก GET รายละเอียดเก่าเมื่อเปลี่ยนแถว และ `takeUntil` ยกเลิก subscription การบันทึกเมื่อปิด/เปลี่ยนรายละเอียด ทั้งหมดใช้ `takeUntilDestroyed` เมื่อ Dashboard ถูกทำลาย การยกเลิกฝั่ง client ไม่รับประกันว่าจะย้อนคำสั่งที่ Backend จริงรับไปแล้ว จึงอ่านข้อมูลใหม่ด้วย GET ทุกครั้งที่เปิดรายละเอียด
-- สถานะ UI ครบ Loading / Empty / Error / Success; Loading/ผลบันทึกใช้ role=status, Error ใช้ role=alert และ select/button มี focus-visible
+### ผลตรวจสอบข้อ 6
 
-ไฟล์เพิ่ม: `components/order-status-form/order-status-form.ts`, `.html`, `.css`, `.spec.ts` และ `order-dashboard/order-dashboard-api.spec.ts`
-
-ไฟล์แก้: `services/order.service.ts`, `order-dashboard/order-dashboard.ts`, `.html`, `components/order-table/order-table.ts`, `.html` และ README นี้ โดย OrderTable/OrderStatusForm ไม่เรียก Service หรือ HttpClient โดยตรง
-
-วิธีตรวจ: เปิดหน้า → ดูรายละเอียดแถว 2 → เปลี่ยนเป็นส่งของแล้ว → บันทึกสถานะ → ตรวจ badge เปลี่ยน → ปิด/เปิดรายละเอียดอีกครั้งเพื่อตรวจว่าค่าใหม่ถูกอ่านกลับจาก Mock API ได้ ใช้ `npm test -- --watch=false` ตรวจ Error ของ GET/PATCH, การลองใหม่, การป้องกันกดซ้ำ และการยกเลิก request
-
-ตรวจ UI ฉบับสมบูรณ์ด้วย Chrome แบบ headless ที่ 360/768/1440px: ไม่มี page horizontal overflow, detail Loading และ save Loading แสดงจริง, ปุ่มปิดระหว่าง PATCH, badge/รายละเอียดอัปเดต และเปิดรายละเอียดซ้ำอ่านสถานะที่บันทึกไว้ได้ ตรวจ Tab ไปปุ่มบันทึกและ focus-visible 3px ผ่าน ยังไม่ได้ตรวจ Screen Reader แบบอ่านออกเสียงจริง
+- `npm test -- --watch=false` (`ng test --watch=false`): ผ่าน 54 tests ใน 11 ไฟล์ ครอบคลุม regression tests เดิม รวมการแปลง พ.ศ. เป็น ค.ศ., วันที่ที่ไม่มีจริง และช่วงวันที่ พ.ศ.
+- `npm run build` (`ng build`): ผ่าน
+- ตรวจด้วย headless browser ที่ 1440/768/360px: ฟอร์มแสดงครบและไม่ล้น viewport
+- ตรวจ combined filters, invalid date range, reset และ PATCH success ผ่านหน้าเว็บ; ตรวจ PATCH error/rollback และ double submit ด้วย HTTP integration tests
+- Mock API เป็น interceptor ภายในแอป ข้อมูลสถานะเก็บในหน่วยความจำและกลับเป็น fixture เมื่อ reload หน้า

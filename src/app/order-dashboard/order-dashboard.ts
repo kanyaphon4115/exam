@@ -1,7 +1,9 @@
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { buddhistDateToIso, buddhistDateValidator, dateRangeValidator, supportedStatusValidator } from '../utils/order-validators';
 import { DecimalPipe } from '@angular/common';
-import { Component, computed, DestroyRef, inject, OnInit, PendingTasks, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, OnInit, PendingTasks, signal, viewChild, ElementRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, debounceTime, defer, distinctUntilChanged, EMPTY, exhaustMap, finalize, map, merge, of, Subject, switchMap, takeUntil, tap } from 'rxjs';
+import { catchError, timer, defer, filter, EMPTY, exhaustMap, finalize, map, merge, of, Subject, switchMap, takeUntil, tap } from 'rxjs';
 import { OrderTableComponent } from '../components/order-table/order-table';
 import type { Order, OrderTableRow } from '../models/order.model';
 import { OrderService } from '../services/order.service';
@@ -9,7 +11,7 @@ import { calculateNetTotal, formatThaiDateTime, groupOrdersByNumber } from '../u
 
 @Component({
   selector: 'app-order-dashboard',
-  imports: [DecimalPipe, OrderTableComponent],
+  imports: [DecimalPipe, OrderTableComponent, ReactiveFormsModule],
   templateUrl: './order-dashboard.html',
   styleUrl: './order-dashboard.css',
 })
@@ -19,7 +21,14 @@ export class OrderDashboardComponent implements OnInit {
   private readonly pendingTasks = inject(PendingTasks);
   private readonly orders = signal<readonly Order[]>([]);
   readonly state = signal<'normal' | 'loading' | 'error'>('loading');
+  readonly filterForm = new FormGroup({
+    search: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(100)] }),
+    status: new FormControl('', { nonNullable: true, validators: [supportedStatusValidator] }),
+    dateFrom: new FormControl('', { nonNullable: true, validators: [buddhistDateValidator] }),
+    dateTo: new FormControl('', { nonNullable: true, validators: [buddhistDateValidator] }),
+  }, { validators: dateRangeValidator });
   private query = '';
+  private appliedSearch = '';
   private readonly searchTerms = new Subject<string>();
   private readonly reload = new Subject<HTMLInputElement>();
   private finishDebounce?: () => void;
@@ -71,31 +80,35 @@ export class OrderDashboardComponent implements OnInit {
         const order = this.detail();
         if (!order) return EMPTY;
         this.saveState.set('saving');
+        let result: 'idle' | 'success' | 'error' = 'idle';
         const done = this.pendingTasks.add();
         return this.orderService.updateOrderStatus(order.id, status).pipe(
           tap(updated => {
             this.orders.update(orders => orders.map(item => item.id === updated.id ? updated : item));
             this.detail.set(this.toTableRow(updated));
-            this.saveState.set('success');
+            result = 'success';
           }),
           catchError(() => {
-            this.saveState.set('error');
+            result = 'error';
             return EMPTY;
           }),
           takeUntil(this.detailRequests),
-          finalize(done),
+          finalize(() => {
+            if (this.saveState() === 'saving') this.saveState.set(result);
+            done();
+          }),
         );
       }),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe();
 
     const searches = this.searchTerms.pipe(
-      debounceTime(300),
+      switchMap(search => timer(300).pipe(map(() => search), takeUntil(this.reload))),
       tap(() => {
         this.finishDebounce?.();
         this.finishDebounce = undefined;
       }),
-      distinctUntilChanged(),
+      filter(search => search !== this.appliedSearch),
       map(search => ({ search, focus: undefined as HTMLInputElement | undefined })),
     );
     merge(
@@ -103,13 +116,22 @@ export class OrderDashboardComponent implements OnInit {
       searches,
       this.reload.pipe(map(focus => ({ search: this.query, focus }))),
     ).pipe(
+      filter(() => this.filterForm.valid),
       switchMap(({ search, focus }) => defer(() => {
+        this.appliedSearch = search;
         this.state.set('loading');
         this.detailRequests.next(null);
         const done = this.pendingTasks.add();
         this.finishDebounce?.();
         this.finishDebounce = undefined;
-        return this.orderService.getOrders({ search, page: 1 }).pipe(
+        const { status, dateFrom, dateTo } = this.filterForm.getRawValue();
+        return this.orderService.getOrders({
+          search,
+          ...(status ? { status: status as Order['status'] } : {}),
+          ...(dateFrom ? { dateFrom: buddhistDateToIso(dateFrom)! } : {}),
+          ...(dateTo ? { dateTo: buddhistDateToIso(dateTo)! } : {}),
+          page: 1,
+        }).pipe(
           tap(orders => {
             this.orders.set(orders);
             this.state.set('normal');
@@ -128,8 +150,28 @@ export class OrderDashboardComponent implements OnInit {
     this.destroyRef.onDestroy(() => this.finishDebounce?.());
   }
 
+  protected submitFilters(searchInput: HTMLInputElement): void {
+    this.filterForm.controls.search.setValue(this.filterForm.controls.search.value.trim());
+    this.filterForm.markAllAsTouched();
+    if (this.filterForm.invalid) return;
+    this.query = this.filterForm.controls.search.value.toLowerCase();
+    this.reload.next(searchInput);
+  }
+
+  protected resetFilters(searchInput: HTMLInputElement): void {
+    this.filterForm.reset();
+    this.query = '';
+    this.reload.next(searchInput);
+  }
+
+  private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
+  protected retrySearch(): void {
+    const input = this.searchInput()?.nativeElement;
+    if (input) this.retry(input);
+  }
+
   protected retry(searchInput: HTMLInputElement): void {
-    if (this.state() !== 'loading') this.reload.next(searchInput);
+    if (this.state() !== 'loading' && this.filterForm.valid) this.reload.next(searchInput);
   }
 
   protected search(value: string): void {

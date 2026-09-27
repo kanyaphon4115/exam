@@ -3,6 +3,26 @@ import { MOCK_ORDERS } from '../../data/orders.mock';
 import { OrderStatusFormComponent } from './order-status-form';
 
 describe('OrderStatusFormComponent', () => {
+  it('requires a supported status and blocks invalid submissions', async () => {
+    const fixture = TestBed.createComponent(OrderStatusFormComponent);
+    fixture.componentRef.setInput('order', MOCK_ORDERS[0]);
+    fixture.componentRef.setInput('controlId', 'required-status');
+    const submitted = vi.fn();
+    fixture.componentInstance.statusSubmitted.subscribe(submitted);
+    await fixture.whenStable();
+    const form = fixture.componentInstance.statusForm;
+    form.controls.status.setValue('');
+    fixture.detectChanges();
+    const page = fixture.nativeElement as HTMLElement;
+    expect(form.controls.status.hasError('required')).toBe(true);
+    expect(page.querySelector('#required-status-error')?.textContent).toContain('กรุณาเลือกสถานะสินค้า');
+    expect(page.querySelector('select')?.getAttribute('aria-invalid')).toBe('true');
+    page.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    form.controls.status.setValue('unknown');
+    page.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    expect(form.invalid).toBe(true);
+    expect(submitted).not.toHaveBeenCalled();
+  });
   it('labels the select, emits status, and prevents submissions while saving', async () => {
     const fixture = TestBed.createComponent(OrderStatusFormComponent);
     fixture.componentRef.setInput('order', MOCK_ORDERS[0]);
@@ -15,6 +35,7 @@ describe('OrderStatusFormComponent', () => {
     const select = page.querySelector('select')!;
     expect(select.value).toBe('ชำระเงินแล้ว');
     select.value = 'ส่งของแล้ว';
+    select.dispatchEvent(new Event('change'));
     page.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
     expect(submitted).toHaveBeenCalledWith('ส่งของแล้ว');
     fixture.componentRef.setInput('state', 'saving');

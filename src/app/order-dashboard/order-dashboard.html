@@ -5,16 +5,43 @@
 
 <main>
   <search class="card search-card" aria-label="ค้นหาคำสั่งซื้อ">
+    <form [formGroup]="filterForm" (ngSubmit)="submitFilters(searchInput)">
     <label for="order-search">ค้นหาคำสั่งซื้อ</label>
     <div class="search-field">
       <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="10.5" cy="10.5" r="7.5" />
         <path d="m16 16 5 5" />
       </svg>
-      <input #searchInput id="order-search" type="search" placeholder="ค้นหาร้าน หรือหมายเลขสั่งซื้อ"
-        aria-describedby="search-help" (input)="search(searchInput.value)" />
+      <input #searchInput id="order-search" type="search" formControlName="search" [attr.aria-invalid]="filterForm.controls.search.invalid" placeholder="ค้นหาร้าน หรือหมายเลขสั่งซื้อ"
+        aria-describedby="search-help search-error" (input)="search(searchInput.value)" />
     </div>
     <p id="search-help">ค้นหาได้จากชื่อร้านหรือหมายเลขสั่งซื้อ</p>
+    @if (filterForm.controls.search.invalid) { <p id="search-error" role="alert">คำค้นหาต้องไม่เกิน 100 ตัวอักษร</p> }
+    <div class="filter-fields">
+      <div>
+        <label for="filter-status">สถานะ</label>
+        <select id="filter-status" formControlName="status" [attr.aria-invalid]="filterForm.controls.status.invalid" aria-describedby="filter-status-error">
+          <option value="">ทุกสถานะ</option><option value="ชำระเงินแล้ว">ชำระเงินแล้ว</option><option value="ส่งของแล้ว">ส่งของแล้ว</option>
+        </select>
+        @if (filterForm.controls.status.invalid) { <p id="filter-status-error" role="alert">กรุณาเลือกสถานะที่ระบบรองรับ</p> }
+      </div>
+      <div>
+        <label for="date-from">วันที่เริ่มต้น (พ.ศ.)</label>
+        <input id="date-from" type="text" formControlName="dateFrom" placeholder="วว/ดด/พ.ศ. เช่น 01/02/2564"
+          [attr.aria-invalid]="filterForm.controls.dateFrom.invalid || filterForm.hasError('dateRange')" aria-describedby="date-help date-from-error date-range-error" />
+        @if (filterForm.controls.dateFrom.invalid) { <p id="date-from-error" role="alert">กรุณากรอกวันที่ที่ถูกต้องในรูปแบบ วว/ดด/พ.ศ. เช่น 01/02/2564</p> }
+      </div>
+      <div>
+        <label for="date-to">วันที่สิ้นสุด (พ.ศ.)</label>
+        <input id="date-to" type="text" formControlName="dateTo" placeholder="วว/ดด/พ.ศ. เช่น 27/09/2569"
+          [attr.aria-invalid]="filterForm.controls.dateTo.invalid || filterForm.hasError('dateRange')" aria-describedby="date-help date-to-error date-range-error" />
+        @if (filterForm.controls.dateTo.invalid) { <p id="date-to-error" role="alert">กรุณากรอกวันที่ที่ถูกต้องในรูปแบบ วว/ดด/พ.ศ. เช่น 27/09/2569</p> }
+      </div>
+    </div>
+    <p id="date-help">กรอกวัน/เดือน/ปี พ.ศ. เป็นตัวเลข เช่น 01/02/2564</p>
+    @if (filterForm.hasError('dateRange')) { <p id="date-range-error" role="alert">วันที่เริ่มต้นต้องไม่มากกว่าวันที่สิ้นสุด</p> }
+    <div class="filter-actions"><button type="submit" [disabled]="filterForm.invalid">ค้นหา</button><button type="button" (click)="resetFilters(searchInput)">ล้างตัวกรอง</button></div>
+    </form>
   </search>
 
   <section class="card" aria-labelledby="order-list-heading">
@@ -31,7 +58,7 @@
       @if (state() === 'error') { ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง }
     </p>
     @if (state() === 'error' || state() === 'loading') {
-      <button type="button" (click)="retry(searchInput)" [attr.aria-disabled]="state() === 'loading'">ลองใหม่</button>
+      <button type="button" (click)="retrySearch()" [attr.aria-disabled]="state() === 'loading'">ลองใหม่</button>
     }
     <div [attr.aria-busy]="state() === 'loading'">
     @if (state() === 'normal' && filteredOrders().length > 0) {

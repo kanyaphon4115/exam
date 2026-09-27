@@ -26,16 +26,17 @@ describe('Dashboard detail and status API integration', () => {
     page.querySelector<HTMLButtonElement>('tbody button')!.click();
     fixture.detectChanges();
     expect(page.textContent).toContain('กำลังโหลดรายละเอียด...');
-    expect(page.querySelector('select')).toBeNull();
+    expect(page.querySelector('app-order-status-form select')).toBeNull();
     const detail = { ...MOCK_ORDERS[0], item: 'Detail returned by API' };
     http.expectOne(`${url}/2`).flush(detail);
     await fixture.whenStable();
     expect(page.querySelector('.details-row:not([hidden])')?.textContent).toContain(detail.item);
-    const select = page.querySelector('select')!;
+    const select = page.querySelector<HTMLSelectElement>('app-order-status-form select')!;
     select.value = 'ส่งของแล้ว';
-    page.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    select.dispatchEvent(new Event('change'));
+    page.querySelector('app-order-status-form form')!.dispatchEvent(new Event('submit', { cancelable: true }));
     fixture.detectChanges();
-    expect(page.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(true);
+    expect(page.querySelector<HTMLButtonElement>('app-order-status-form button[type="submit"]')!.disabled).toBe(true);
     expect(page.textContent).toContain('กำลังบันทึก...');
     const patch = http.expectOne(`${url}/2/status`);
     expect(patch.request.method).toBe('PATCH');
@@ -45,7 +46,7 @@ describe('Dashboard detail and status API integration', () => {
     expect(page.textContent).toContain('อัปเดตสถานะสำเร็จ');
     expect(page.querySelector('app-status-badge')?.textContent).toBe('ส่งของแล้ว');
     expect(page.querySelector('.details-row:not([hidden])')?.textContent).toContain('ส่งของแล้ว');
-    expect(page.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(false);
+    expect(page.querySelector<HTMLButtonElement>('app-order-status-form button[type="submit"]')!.disabled).toBe(false);
   });
 
   it('shows a detail error and retries GET on request', async () => {
@@ -57,7 +58,7 @@ describe('Dashboard detail and status API integration', () => {
     page.querySelector<HTMLButtonElement>('.details-row:not([hidden]) button')!.click();
     http.expectOne(`${url}/2`).flush(MOCK_ORDERS[0]);
     await fixture.whenStable();
-    expect(page.querySelector('select')).not.toBeNull();
+    expect(page.querySelector('app-order-status-form select')).not.toBeNull();
   });
 
   it('retains the old status on PATCH error and allows deliberate resubmission', async () => {
@@ -65,8 +66,9 @@ describe('Dashboard detail and status API integration', () => {
     page.querySelector<HTMLButtonElement>('tbody button')!.click();
     http.expectOne(`${url}/2`).flush(MOCK_ORDERS[0]);
     await fixture.whenStable();
-    page.querySelector('select')!.value = 'ส่งของแล้ว';
-    const form = page.querySelector('form')!;
+    page.querySelector<HTMLSelectElement>('app-order-status-form select')!.value = 'ส่งของแล้ว';
+    page.querySelector('app-order-status-form select')!.dispatchEvent(new Event('change'));
+    const form = page.querySelector('app-order-status-form form')!;
     form.dispatchEvent(new Event('submit', { cancelable: true }));
     form.dispatchEvent(new Event('submit', { cancelable: true }));
     http.expectOne(`${url}/2/status`).flush({}, { status: 503, statusText: 'Unavailable' });
@@ -74,6 +76,7 @@ describe('Dashboard detail and status API integration', () => {
     expect(page.textContent).toContain('ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง');
     expect(page.querySelector('app-status-badge')?.textContent).toBe('ชำระเงินแล้ว');
     http.expectNone(`${url}/2/status`);
+    expect((page.querySelector('app-order-status-form select') as HTMLSelectElement).value).toBe('ชำระเงินแล้ว');
     form.dispatchEvent(new Event('submit', { cancelable: true }));
     http.expectOne(`${url}/2/status`).flush({ ...MOCK_ORDERS[0], status: 'ส่งของแล้ว' });
     await fixture.whenStable();
@@ -89,7 +92,7 @@ describe('Dashboard detail and status API integration', () => {
     expect(old.cancelled).toBe(true);
     http.expectOne(`${url}/4`).flush(MOCK_ORDERS[1]);
     await fixture.whenStable();
-    page.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    page.querySelector('app-order-status-form form')!.dispatchEvent(new Event('submit', { cancelable: true }));
     const patch = http.expectOne(`${url}/4/status`);
     fixture.destroy();
     expect(patch.cancelled).toBe(true);

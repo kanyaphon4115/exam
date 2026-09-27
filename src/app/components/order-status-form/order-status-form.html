@@ -1,12 +1,16 @@
-<form (submit)="submit($event, status.value)" [attr.aria-busy]="state() === 'saving'">
+<form [formGroup]="statusForm" (ngSubmit)="submit($event)" [attr.aria-busy]="state() === 'saving'">
   <label [for]="controlId()">สถานะสินค้า</label>
   <div class="controls">
-    <select #status [id]="controlId()" [value]="order().status" [disabled]="state() === 'saving'">
+    <select [id]="controlId()" formControlName="status" [attr.aria-invalid]="statusForm.controls.status.invalid" [attr.aria-describedby]="controlId() + '-error'">
+      <option value="">เลือกสถานะ</option>
       <option value="ชำระเงินแล้ว">ชำระเงินแล้ว</option>
       <option value="ส่งของแล้ว">ส่งของแล้ว</option>
     </select>
-    <button type="submit" [disabled]="state() === 'saving'">บันทึกสถานะ</button>
+    <button type="submit" [disabled]="state() === 'saving' || statusForm.invalid">{{ state() === 'saving' ? 'กำลังบันทึก...' : 'บันทึกสถานะ' }}</button>
   </div>
+  @if (statusForm.controls.status.invalid) {
+    <p [id]="controlId() + '-error'" role="alert">{{ statusForm.controls.status.hasError('required') ? 'กรุณาเลือกสถานะสินค้า' : 'กรุณาเลือกสถานะที่ระบบรองรับ' }}</p>
+  }
 </form>
 <p role="status" aria-atomic="true">
   @if (state() === 'saving') { กำลังบันทึก... }

@@ -31,6 +31,8 @@ export interface OrderTableRow extends Order {
 
 export interface OrderQuery {
   readonly search?: string;
+  readonly dateFrom?: string;
+  readonly dateTo?: string;
   readonly status?: Order['status'];
   /** One-based page; mock page size is 10. */
   readonly page?: number;

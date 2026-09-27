@@ -23,6 +23,8 @@ export class OrderService {
     let params = new HttpParams();
     if (query.search !== undefined) params = params.set('search', query.search);
     if (query.status !== undefined) params = params.set('status', query.status);
+    if (query.dateFrom !== undefined) params = params.set('dateFrom', query.dateFrom);
+    if (query.dateTo !== undefined) params = params.set('dateTo', query.dateTo);
     if (query.page !== undefined) params = params.set('page', query.page);
     return this.http.get<readonly Order[]>(this.url, { params }).pipe(retryReads());
   }
