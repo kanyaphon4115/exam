@@ -82,3 +82,14 @@ src/styles.css
 - Keyboard Navigation
 - Loading / Empty / Error State
 
+## ข้อ 3: TypeScript Data Transformation
+
+- Function: `src/app/utils/order-transform.ts`
+- Type Definition: `src/app/models/order.ts`
+- Unit Test: `src/app/utils/order-transform.spec.ts`
+
+Unit Test ครอบคลุม 4 กรณี:
+1. การจัดกลุ่มตามหมายเลขคำสั่งซื้อ
+2. การคำนวณยอดรวมสุทธิ
+3. การแปลงวันที่เป็น พ.ศ.
+4. ตรวจสอบว่า Pure Function ไม่แก้ไขข้อมูลต้นฉบับ

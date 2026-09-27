@@ -55,3 +55,9 @@ button[aria-disabled="true"] { opacity: .65; cursor: wait; }
 @media (max-width: 768px) {
   th, td { padding: 16px 12px; }
 }
+
+.order-summary { margin-top: 24px; padding: 16px; border-radius: 8px; background: #f2f6fa; overflow-wrap: anywhere; }
+.order-summary h3, .order-summary p { margin: 0 0 8px; }
+.order-summary dl { margin: 16px 0; }
+.order-summary dl > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding: 8px 0; border-bottom: 1px solid #d5dfe9; }
+.order-summary dd { margin: 0; font-variant-numeric: tabular-nums; }

@@ -57,12 +57,12 @@
           </tr>
         </thead>
         <tbody>
-          @for (order of filteredOrders(); track order.id) {
+          @for (order of displayOrders(); track order.id) {
             <tr>
               <th scope="row">{{ order.id }}</th>
               <td>{{ order.shop }}</td>
               <td><span class="badge" [class.paid]="order.status === 'ชำระเงินแล้ว'" [class.shipped]="order.status === 'ส่งของแล้ว'">{{ order.status }}</span></td>
-              <td><time [attr.datetime]="order.date + 'T' + order.time">{{ order.date }}<br />{{ order.time }}</time></td>
+              <td><time [attr.datetime]="order.date + 'T' + order.time">{{ order.thaiDate }}</time></td>
               <td>{{ order.number }}</td>
               <td class="item">{{ order.item }}</td>
               <td>{{ order.option }}</td>
@@ -86,6 +86,19 @@
         </tbody>
       </table>
     </div>
+    <section class="order-summary" aria-labelledby="summary-heading">
+      <h3 id="summary-heading">สรุปตามหมายเลขคำสั่งซื้อ</h3>
+      <p>สรุปจากรายการที่ตรงกับคำค้นหา</p>
+      <dl>
+        @for (group of orderGroups(); track group.number) {
+          <div>
+            <dt>{{ group.number }} ({{ group.items.length }} รายการ)</dt>
+            <dd>รวมสุทธิ {{ group.netTotal | number:'1.2-2' }} บาท</dd>
+          </div>
+        }
+      </dl>
+      <p><strong>ยอดสุทธิรวม {{ netTotal() | number:'1.2-2' }} บาท</strong></p>
+    </section>
     }
     </div>
   </section>
