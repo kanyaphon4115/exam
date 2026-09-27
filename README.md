@@ -1,63 +1,43 @@
-<<<<<<< HEAD
-# OrderManagement
+# Order Management Dashboard
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.2.0.
+## ข้อ 1: Semantic HTML และ Accessibility
 
-## Development server
+สร้างหน้า Order List ด้วย Angular สำหรับแสดงรายการคำสั่งซื้อ โดยใช้ Semantic HTML และรองรับ Accessibility
 
-To start a local development server, run:
+### สิ่งที่ทำ
+- แสดงข้อมูล Order ในรูปแบบตาราง
+- มีช่องค้นหา Order
+- ใช้ `label`, `heading`, `table` และ `button` อย่างเหมาะสม
+- รองรับการใช้งานด้วย Keyboard
+- รองรับ Screen Reader
+- รองรับ Responsive
+
+## วิธีติดตั้ง
+
+```bash
+npm install
+```
+
+## วิธีรัน
 
 ```bash
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+เปิด Browser ที่
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
+```text
+http://localhost:4200
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Accessibility
+## Accessibility
 
-```bash
-ng generate --help
-```
+1. **Keyboard Navigation**  
+   ใช้ `<button>` และ `<input>` ที่เป็น HTML element มาตรฐาน ทำให้ผู้ใช้สามารถกด `Tab` เพื่อเลื่อนไปยังช่องค้นหาและปุ่มต่าง ๆ และใช้ `Enter`/`Space` เพื่อกดปุ่มได้
 
-## Building
+2. **Screen Reader**  
+   ช่องค้นหามี `<label>` และปุ่มดูรายละเอียดมี `aria-label` ระบุหมายเลขคำสั่งซื้อ ทำให้ Screen Reader สามารถอธิบายหน้าที่ของแต่ละส่วนได้ชัดเจน
 
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
-=======
-# exam
->>>>>>> 25d584ec00ab5fb3ce1a8a78fb66c6ea3e2e6fd2
+3. **Accessible Table**  
+   ใช้ `<table>`, `<thead>`, `<tbody>` และ `<th scope="col">` เพื่อให้ Screen Reader เข้าใจความสัมพันธ์ระหว่างหัวตารางกับข้อมูลแต่ละคอลัมน์
