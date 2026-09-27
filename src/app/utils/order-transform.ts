@@ -1,4 +1,4 @@
-import type { Order, OrderGroup } from '../models/order';
+import type { Order, OrderGroup } from '../models/order.model';
 
 /** Sum line subtotals + shipping - discounts, using integer satang arithmetic.
  * Shipping and discounts belong to each row, as in the supplied mock data.

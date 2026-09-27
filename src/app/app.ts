@@ -1,8 +1,8 @@
-﻿import { Component } from '@angular/core';
-import { OrderListComponent } from './order-list/order-list';
+import { Component } from '@angular/core';
+import { OrderDashboardComponent } from './order-dashboard/order-dashboard';
 
 @Component({
-  imports: [OrderListComponent],
+  imports: [OrderDashboardComponent],
   selector: 'app-root',
   styleUrl: './app.css',
   templateUrl: './app.html',

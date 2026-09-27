@@ -24,3 +24,7 @@ export interface OrderGroup {
   readonly items: readonly Order[];
   readonly netTotal: number;
 }
+
+export interface OrderTableRow extends Order {
+  readonly thaiDate: string;
+}

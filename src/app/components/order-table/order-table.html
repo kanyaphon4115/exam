@@ -1,0 +1,51 @@
+    <p [id]="tableId() + '-help'" class="table-help">เลื่อนตารางแนวนอนเพื่อดูข้อมูลทั้งหมด หรือกด Tab มาที่ตารางแล้วใช้ปุ่มลูกศรซ้ายและขวา</p>
+    <div class="table-scroll" role="region" aria-label="รายการคำสั่งซื้อ" [attr.aria-describedby]="tableId() + '-help'" tabindex="0">
+      <table>
+        <caption class="sr-only">รายการคำสั่งซื้อ พร้อมสถานะ สินค้า จำนวน ยอดชำระ และปุ่มดูรายละเอียด</caption>
+        <thead>
+          <tr>
+            <th scope="col">ลำดับ</th>
+            <th scope="col">ร้าน</th>
+            <th scope="col">สถานะสินค้า</th>
+            <th scope="col">วันที่สั่งซื้อ</th>
+            <th scope="col">หมายเลขสั่งซื้อ</th>
+            <th scope="col">รายการ</th>
+            <th scope="col">ตัวเลือกสินค้า</th>
+            <th scope="col" class="numeric">จำนวน</th>
+            <th scope="col" class="numeric">ยอดรวม</th>
+            <th scope="col" class="numeric">ค่าจัดส่ง</th>
+            <th scope="col" class="numeric">ส่วนลด</th>
+            <th scope="col" class="numeric">รวมสุทธิ</th>
+            <th scope="col">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (order of orders(); track order.id) {
+            <tr>
+              <th scope="row">{{ order.id }}</th>
+              <td>{{ order.shop }}</td>
+              <td><app-status-badge [status]="order.status" /></td>
+              <td><time [attr.datetime]="order.date + 'T' + order.time">{{ order.thaiDate }}</time></td>
+              <td>{{ order.number }}</td>
+              <td class="item">{{ order.item }}</td>
+              <td>{{ order.option }}</td>
+              <td class="numeric">{{ order.quantity | number:'1.2-2' }}</td>
+              <td class="numeric">{{ order.total | number:'1.2-2' }}</td>
+              <td class="numeric">{{ order.shipping | number:'1.2-2' }}</td>
+              <td class="numeric">{{ order.discount | number:'1.2-2' }}</td>
+              <td class="numeric">{{ order.net | number:'1.2-2' }}</td>
+              <td><button type="button" [attr.aria-label]="'ดูรายละเอียดคำสั่งซื้อ ' + order.number + ' รายการ ' + order.item"
+                [attr.aria-expanded]="expandedRow() === order.id" [attr.aria-controls]="tableId() + '-details-' + order.id"
+                (click)="detailsRequested.emit(order.id)">ดูรายละเอียด</button></td>
+            </tr>
+            <tr [id]="tableId() + '-details-' + order.id" [hidden]="expandedRow() !== order.id" class="details-row">
+              <td colspan="13">
+                <strong>รายละเอียดคำสั่งซื้อ {{ order.number }} — ลำดับ {{ order.id }}</strong>
+                <p>{{ order.shop }} · {{ order.item }} · {{ order.option }} · {{ order.status }}</p>
+                <p>ยอดรวม {{ order.total | number:'1.2-2' }} + ค่าจัดส่ง {{ order.shipping | number:'1.2-2' }} − ส่วนลด {{ order.discount | number:'1.2-2' }} = รวมสุทธิ {{ order.net | number:'1.2-2' }}</p>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
