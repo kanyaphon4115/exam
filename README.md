@@ -56,28 +56,26 @@ http://localhost:4200
 
 1. รัน `npm start` แล้วเปิด `http://localhost:4200` ใน Chrome และ Microsoft Edge
 2. เปิด DevTools (`F12`) และ Device Toolbar (`Ctrl+Shift+M`) เลือก Responsive แล้วทดสอบที่ **360 × 900**, **768 × 900**, **1440 × 900** CSS pixels โดยใช้ zoom 100%
-3. ตรวจว่า Search / การ์ด / ข้อความไม่ล้นหน้าจอ และเลื่อนตารางไปถึงคอลัมน์จัดการได้โดยหน้าเว็บไม่เลื่อนแนวนอน Desktop ยังคงเป็นตาราง หากพื้นที่ไม่พอจะเลื่อนภายในตารางเช่นกัน
-4. กด Tab ไปยัง Search → พื้นที่ตาราง → ปุ่มรายละเอียด ต้องเห็นกรอบ focus ใช้ลูกศรซ้าย/ขวาเลื่อนตาราง และ Enter/Space เปิดปิดรายละเอียด
-5. ค้นหา `Icomputer` ต้องพบ 2 รายการ ค้นหา `no-match` ต้องเห็น **ไม่พบรายการคำสั่งซื้อ** ล้างคำค้นต้องกลับมา 3 รายการ
-6. สำหรับ Loading และ Error ให้ใช้ Console ใน development mode (`npm start`) เพื่อจำลองสถานะ Mock:
-
-```js
-const orderList = ng.getComponent(document.querySelector('app-order-list'));
-orderList.state.set('loading'); // กำลังโหลดข้อมูล...
-orderList.state.set('error');   // ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง
-orderList.state.set('normal');  // แสดงข้อมูลตามคำค้นปัจจุบัน
 ```
+ทดสอบการแสดงผลทั้งหมด 3 ขนาด
 
-รันแต่ละคำสั่งแยกกันเพื่อดูแต่ละ State ใน Error ให้คลิก **ลองใหม่อีกครั้ง** ต้องแสดง Loading แล้วกลับสู่ Normal และโฟกัสช่องค้นหา คำสั่ง `ng.getComponent` ใช้ได้เฉพาะ development mode เท่านั้น การปิดเครือข่ายจะไม่ทำให้ Mock เกิด Error
+- Mobile: 360px — ผ่าน
+- Tablet: 768px — ผ่าน
+- Desktop: 1440px — ผ่าน
 
-ตรวจ horizontal overflow ได้จาก Console ในทุกขนาดและทุก State (ควรได้ `true`):
-
-```js
-document.documentElement.scrollWidth === document.documentElement.clientWidth
-```
+หน้าเว็บสามารถแสดงผลได้โดยข้อมูลไม่ล้นออกนอกหน้าจอ และตารางสามารถเลื่อนแนวนอนได้เมื่อพื้นที่ไม่เพียงพอ
 
 ### Browser Test Note
 
-ทดสอบเมื่อ 27 กันยายน 2026 บน Windows ด้วย Chrome 153 และ Microsoft Edge 154 แบบ headless ที่ 360px, 768px และ 1440px ผ่านทั้งสองเบราว์เซอร์: ไม่มี page horizontal overflow, Search อยู่ใน viewport, ตารางเลื่อนได้ภายใน container, ค้นหา/เปิดรายละเอียดได้, แสดง Normal/Loading/Empty/Error ถูกต้อง และ retry กลับสู่ Normal พร้อมคืน focus ตรวจ Tab/ลูกศร/Enter และกรอบ focus 3px แล้ว ไม่พบ page runtime errors ระหว่างตรวจหน้า ไม่มีการใช้ CSS framework หรือ CSS เฉพาะเบราว์เซอร์
+ทดสอบบน Browser:
 
-ตรวจ production build ผ่านด้วย `npm run build` การตรวจ accessibility ครั้งนี้ครอบคลุม DOM/accessibility tree และคีย์บอร์ด ยังไม่ได้ทดสอบการอ่านออกเสียงด้วย Screen Reader จริงหรืออุปกรณ์มือถือจริง
+- Google Chrome — ผ่าน
+- Microsoft Edge — ผ่าน
+
+ตรวจสอบ:
+- Layout และ Responsive
+- Search Input
+- Order Table
+- Keyboard Navigation
+- Loading / Empty / Error State
+
