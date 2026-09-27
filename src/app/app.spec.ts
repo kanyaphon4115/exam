@@ -1,7 +1,10 @@
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { mockOrdersInterceptor } from './services/mock-orders.interceptor';
 import { TestBed } from '@angular/core/testing';
 import { App } from './app';
 
 describe('App', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [provideHttpClient(withInterceptors([mockOrdersInterceptor]))] }));
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],

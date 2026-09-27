@@ -12,7 +12,7 @@
         <path d="m16 16 5 5" />
       </svg>
       <input #searchInput id="order-search" type="search" placeholder="ค้นหาร้าน หรือหมายเลขสั่งซื้อ"
-        aria-describedby="search-help" (input)="query.set($any($event.target).value)" />
+        aria-describedby="search-help" (input)="search(searchInput.value)" />
     </div>
     <p id="search-help">ค้นหาได้จากชื่อร้านหรือหมายเลขสั่งซื้อ</p>
   </search>
@@ -31,7 +31,7 @@
       @if (state() === 'error') { ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง }
     </p>
     @if (state() === 'error' || state() === 'loading') {
-      <button type="button" (click)="retry(searchInput)" [attr.aria-disabled]="state() === 'loading'">ลองใหม่อีกครั้ง</button>
+      <button type="button" (click)="retry(searchInput)" [attr.aria-disabled]="state() === 'loading'">ลองใหม่</button>
     }
     <div [attr.aria-busy]="state() === 'loading'">
     @if (state() === 'normal' && filteredOrders().length > 0) {

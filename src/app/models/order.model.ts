@@ -28,3 +28,10 @@ export interface OrderGroup {
 export interface OrderTableRow extends Order {
   readonly thaiDate: string;
 }
+
+export interface OrderQuery {
+  readonly search?: string;
+  readonly status?: Order['status'];
+  /** One-based page; mock page size is 10. */
+  readonly page?: number;
+}
