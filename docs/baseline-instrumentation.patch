@@ -119,3 +119,72 @@ index 74539a3..91c7a20 100644
    apiBaseUrl: '/api',
    mockApi: { enabled: true, latencyMs: 600, forceError: false },
  };
+diff --git a/src/app/data/orders.performance.ts b/src/app/data/orders.performance.ts
+new file mode 100644
+--- /dev/null
++++ b/src/app/data/orders.performance.ts
+@@ -0,0 +1,11 @@
++import type { Order } from '../models/order.model';
++import { MOCK_ORDERS } from './orders.mock';
++
++/** Deterministic development fixture, never a replacement for production data. */
++export function generatePerformanceOrders(count = 5000): readonly Order[] {
++  return Array.from({ length: count }, (_, index) => ({
++    ...MOCK_ORDERS[index % MOCK_ORDERS.length],
++    id: index + 1,
++    number: `PERF${String(index + 1).padStart(6, '0')}`,
++  }));
++}
+diff --git a/src/app/services/performance-metrics.ts b/src/app/services/performance-metrics.ts
+new file mode 100644
+--- /dev/null
++++ b/src/app/services/performance-metrics.ts
+@@ -0,0 +1,48 @@
++import { Injectable } from '@angular/core';
++import { environment } from '../../environments/environment';
++
++export interface PerformanceSnapshot {
++  apiCalls: { method: string; url: string }[];
++  transforms: { name: string; count: number; ms: number }[];
++  renders: { orderRows: number; tableRows: number; ms: number }[];
++}
++
++@Injectable({ providedIn: 'root' })
++export class PerformanceMetrics {
++  readonly enabled = environment.performanceTesting && typeof location !== 'undefined'
++    && new URLSearchParams(location.search).get('perf') === '5000';
++  readonly data: PerformanceSnapshot = { apiCalls: [], transforms: [], renders: [] };
++  private renderStart: number | null = null;
++
++  constructor() {
++    if (this.enabled) {
++      (window as Window & { __orderPerformance?: PerformanceSnapshot }).__orderPerformance = this.data;
++    }
++  }
++
++  request(method: string, url: string): void {
++    if (this.enabled) this.data.apiCalls.push({ method, url });
++  }
++
++  measure<T>(name: string, count: number, work: () => T): T {
++    if (!this.enabled) return work();
++    const start = performance.now();
++    const value = work();
++    this.data.transforms.push({ name, count, ms: performance.now() - start });
++    return value;
++  }
++
++  beginRender(): void {
++    if (this.enabled) this.renderStart = performance.now();
++  }
++
++  rendered(element: HTMLElement): void {
++    if (this.renderStart === null) return;
++    this.data.renders.push({
++      orderRows: element.querySelectorAll('tbody tr:not(.details-row)').length,
++      tableRows: element.querySelectorAll('tbody tr').length,
++      ms: performance.now() - this.renderStart,
++    });
++    this.renderStart = null;
++  }
++}

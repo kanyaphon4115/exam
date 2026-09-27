@@ -62,10 +62,18 @@
     }
     <nav class="pagination" aria-label="หน้ารายการคำสั่งซื้อ">
       <button type="button" (click)="changePage(page() - 1)" [disabled]="page() <= 1 || state() === 'loading' || filterForm.invalid">หน้าก่อนหน้า</button>
-      <span aria-live="polite" aria-atomic="true">หน้า {{ page() }} จาก {{ pageCount() }} · {{ total() }} รายการ</span>
+      <span aria-live="polite" aria-atomic="true">หน้า {{ page() }} / {{ pageCount() }} · {{ firstItem() | number }}–{{ lastItem() | number }} จาก {{ total() | number }} รายการ</span>
       <button type="button" (click)="changePage(page() + 1)" [disabled]="page() >= pageCount() || state() === 'loading' || filterForm.invalid">หน้าถัดไป</button>
       <button type="button" (click)="retrySearch()" [disabled]="state() === 'loading' || filterForm.invalid">รีเฟรชรายการ</button>
     </nav>
+    @if (performanceMode) {
+      <aside class="performance-info" aria-label="ข้อมูลทดสอบประสิทธิภาพ" lang="en">
+        <strong>Performance Test</strong>
+        <span>Dataset: 5,000 orders</span>
+        <span>Rows rendered: {{ state() === 'normal' ? filteredOrders().length : 0 }}</span>
+        <span>Page: {{ page() }} / {{ pageCount() }}</span>
+      </aside>
+    }
     <div [attr.aria-busy]="state() === 'loading'">
     @if (state() === 'normal' && filteredOrders().length > 0) {
     <app-order-table tableId="dashboard-orders" [orders]="displayOrders()" [expandedRow]="expandedRow()"

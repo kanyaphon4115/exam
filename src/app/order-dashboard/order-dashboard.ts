@@ -3,7 +3,7 @@ import { buddhistDateToIso, buddhistDateValidator, dateRangeValidator, supported
 import { DecimalPipe } from '@angular/common';
 import { afterEveryRender, ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, PendingTasks, signal, viewChild, ElementRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, timer, defer, filter, EMPTY, exhaustMap, finalize, map, merge, of, Subject, switchMap, takeUntil, tap } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, defer, filter, EMPTY, exhaustMap, finalize, map, merge, of, Subject, switchMap, takeUntil, tap } from 'rxjs';
 import { OrderTableComponent } from '../components/order-table/order-table';
 import type { Order, OrderQuery, OrderTableRow } from '../models/order.model';
 import { OrderService } from '../services/order.service';
@@ -20,6 +20,7 @@ import { calculateNetTotal, formatThaiDateTime, groupOrdersByNumber } from '../u
 export class OrderDashboardComponent implements OnInit {
   private readonly orderService = inject(OrderService);
   private readonly metrics = inject(PerformanceMetrics);
+  protected readonly performanceMode = this.metrics.enabled;
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
   private readonly pendingTasks = inject(PendingTasks);
@@ -36,6 +37,8 @@ export class OrderDashboardComponent implements OnInit {
   protected readonly page = signal(1);
   protected readonly total = signal(0);
   protected readonly pageCount = computed(() => Math.max(1, Math.ceil(this.total() / 50)));
+  protected readonly firstItem = computed(() => this.total() === 0 ? 0 : (this.page() - 1) * 50 + 1);
+  protected readonly lastItem = computed(() => Math.min(this.page() * 50, this.total()));
   private readonly searchTerms = new Subject<string>();
   private readonly reload = new Subject<{ focus?: HTMLInputElement; refresh: boolean; query?: OrderQuery }>();
   private finishDebounce?: () => void;
@@ -113,12 +116,14 @@ export class OrderDashboardComponent implements OnInit {
       takeUntilDestroyed(this.destroyRef),
     ).subscribe();
 
-    const searches = this.searchTerms.pipe(
-      switchMap(search => timer(300).pipe(map(() => search), takeUntil(this.reload))),
+    const searches = merge(this.searchTerms, this.reload.pipe(map(() => null))).pipe(
+      // A submit/reset replaces a pending term with null, preventing a delayed stale search.
+      debounceTime(300),
       tap(() => {
         this.finishDebounce?.();
         this.finishDebounce = undefined;
       }),
+      filter((search): search is string => search !== null),
       map(search => ({ query: this.filterQuery(search), refresh: false, focus: undefined as HTMLInputElement | undefined })),
     );
     merge(
@@ -129,7 +134,8 @@ export class OrderDashboardComponent implements OnInit {
       filter(() => this.filterForm.valid),
       // Compare the whole normalized query, including page, across every trigger.
       // Retry/refresh and recovery after an error intentionally bypass this guard.
-      filter(({ query, refresh }) => refresh || this.state() === 'error' || JSON.stringify(query) !== JSON.stringify(this.appliedQuery)),
+      distinctUntilChanged((previous, next) => !next.refresh && this.state() !== 'error'
+        && JSON.stringify(previous.query) === JSON.stringify(next.query)),
       switchMap(({ query, focus, refresh }) => defer(() => {
         this.appliedQuery = query;
         this.page.set(query.page ?? 1);

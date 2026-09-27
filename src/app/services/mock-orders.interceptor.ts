@@ -1,4 +1,4 @@
-import { HttpErrorResponse, HttpInterceptorFn, HttpResponse } from '@angular/common/http';
+import { HttpErrorResponse, HttpHeaders, HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { map, timer } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -63,7 +63,7 @@ export const mockOrdersInterceptor: HttpInterceptorFn = (request, next) => {
       if (status && status !== 'ชำระเงินแล้ว' && status !== 'ส่งของแล้ว') return fail(400, 'Invalid status');
       const matches = store.matching(urlParams.get('search') ?? '', status, urlParams.get('dateFrom') ?? '', urlParams.get('dateTo') ?? '');
       return new HttpResponse({ status: 200,
-        headers: { 'X-Total-Count': String(matches.length) },
+        headers: new HttpHeaders({ 'X-Total-Count': String(matches.length) }),
         body: matches.slice((page - 1) * pageSize, page * pageSize).map(order => ({ ...order })),
       });
     }

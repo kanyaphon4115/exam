@@ -1,0 +1,89 @@
+{
+  "all": {
+    "apiCalls": [
+      {
+        "method": "GET",
+        "url": "/api/orders?search=&page=1&pageSize=50"
+      },
+      {
+        "method": "GET",
+        "url": "/api/orders?search=icomputer&page=1&pageSize=50"
+      },
+      {
+        "method": "GET",
+        "url": "/api/orders/2"
+      }
+    ],
+    "renders": [
+      {
+        "ms": 37.29999999701977,
+        "orderRows": 50,
+        "tableRows": 50
+      },
+      {
+        "ms": 17.799999997019768,
+        "orderRows": 50,
+        "tableRows": 50
+      }
+    ],
+    "transforms": [
+      {
+        "count": 50,
+        "ms": 0.8000000044703484,
+        "name": "rows"
+      },
+      {
+        "count": 50,
+        "ms": 0.5,
+        "name": "group"
+      },
+      {
+        "count": 50,
+        "ms": 0.3999999985098839,
+        "name": "rows"
+      },
+      {
+        "count": 50,
+        "ms": 0.20000000298023224,
+        "name": "group"
+      }
+    ]
+  },
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+  "dataset": 5000,
+  "initial": {
+    "apiCalls": [
+      {
+        "method": "GET",
+        "url": "/api/orders?search=&page=1&pageSize=50"
+      }
+    ],
+    "renders": [
+      {
+        "ms": 37.29999999701977,
+        "orderRows": 50,
+        "tableRows": 50
+      }
+    ],
+    "transforms": [
+      {
+        "count": 50,
+        "ms": 0.8000000044703484,
+        "name": "rows"
+      },
+      {
+        "count": 50,
+        "ms": 0.5,
+        "name": "group"
+      }
+    ]
+  },
+  "rapidSearchCalls": 1,
+  "repeatedDetailCalls": 1,
+  "repeatedSubmitCalls": 0,
+  "timestamp": "2026-09-27T12:08:37.965Z",
+  "viewport": {
+    "height": 900,
+    "width": 1440
+  }
+}

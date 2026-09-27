@@ -9,8 +9,7 @@ export interface PerformanceSnapshot {
 
 @Injectable({ providedIn: 'root' })
 export class PerformanceMetrics {
-  readonly enabled = environment.performanceTesting && typeof location !== 'undefined'
-    && new URLSearchParams(location.search).get('perf') === '5000';
+  readonly enabled = environment.performanceTesting && environment.mockApi.performanceTestMode;
   readonly data: PerformanceSnapshot = { apiCalls: [], transforms: [], renders: [] };
   private renderStart: number | null = null;
 

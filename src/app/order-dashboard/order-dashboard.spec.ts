@@ -3,16 +3,16 @@ import { mockOrdersInterceptor } from '../services/mock-orders.interceptor';
 import { TestBed } from '@angular/core/testing';
 import { OrderDashboardComponent } from './order-dashboard';
 import { Subject } from 'rxjs';
-import type { Order } from '../models/order.model';
+import type { OrderPage } from '../models/order.model';
 import { OrderService } from '../services/order.service';
 
 describe('Order List transformations', () => {
   it('debounces search, ignores duplicates and cancels the previous request', () => {
     vi.useFakeTimers();
-    const first = new Subject<readonly Order[]>();
-    const second = new Subject<readonly Order[]>();
-    const getOrders = vi.fn().mockReturnValueOnce(first).mockReturnValue(second);
-    TestBed.configureTestingModule({ providers: [{ provide: OrderService, useValue: { getOrders } }] });
+    const first = new Subject<OrderPage>();
+    const second = new Subject<OrderPage>();
+    const getOrdersPage = vi.fn().mockReturnValueOnce(first).mockReturnValue(second);
+    TestBed.configureTestingModule({ providers: [{ provide: OrderService, useValue: { getOrdersPage } }] });
     const fixture = TestBed.createComponent(OrderDashboardComponent);
     try {
       fixture.detectChanges();
@@ -21,19 +21,19 @@ describe('Order List transformations', () => {
       vi.advanceTimersByTime(200);
       input.value = 'Icomputer'; input.dispatchEvent(new Event('input'));
       vi.advanceTimersByTime(299);
-      expect(getOrders).toHaveBeenCalledTimes(1);
+      expect(getOrdersPage).toHaveBeenCalledTimes(1);
       vi.advanceTimersByTime(1);
-      expect(getOrders).toHaveBeenLastCalledWith({ search: 'icomputer', page: 1 });
+      expect(getOrdersPage).toHaveBeenLastCalledWith({ search: 'icomputer', page: 1 }, false);
       expect(first.observed).toBe(false);
       expect(second.observed).toBe(true);
       input.dispatchEvent(new Event('input'));
       vi.advanceTimersByTime(300);
-      expect(getOrders).toHaveBeenCalledTimes(2);
+      expect(getOrdersPage).toHaveBeenCalledTimes(2);
       // Returning to the previous debounced term must not leave a pending task.
       input.value = 'temporary'; input.dispatchEvent(new Event('input'));
       input.value = 'Icomputer'; input.dispatchEvent(new Event('input'));
       vi.advanceTimersByTime(300);
-      expect(getOrders).toHaveBeenCalledTimes(2);
+      expect(getOrdersPage).toHaveBeenCalledTimes(2);
     } finally {
       fixture.destroy();
       vi.useRealTimers();
@@ -42,10 +42,10 @@ describe('Order List transformations', () => {
 
   it('accepts new searches after a request error', () => {
     vi.useFakeTimers();
-    const first = new Subject<readonly Order[]>();
-    const next = new Subject<readonly Order[]>();
-    const getOrders = vi.fn().mockReturnValueOnce(first).mockReturnValue(next);
-    TestBed.configureTestingModule({ providers: [{ provide: OrderService, useValue: { getOrders } }] });
+    const first = new Subject<OrderPage>();
+    const next = new Subject<OrderPage>();
+    const getOrdersPage = vi.fn().mockReturnValueOnce(first).mockReturnValue(next);
+    TestBed.configureTestingModule({ providers: [{ provide: OrderService, useValue: { getOrdersPage } }] });
     const fixture = TestBed.createComponent(OrderDashboardComponent);
     try {
       fixture.detectChanges();
@@ -54,7 +54,7 @@ describe('Order List transformations', () => {
       const input = (fixture.nativeElement as HTMLElement).querySelector('input')!;
       input.value = 'new'; input.dispatchEvent(new Event('input'));
       vi.advanceTimersByTime(300);
-      next.next([]); next.complete();
+      next.next({ items: [], total: 0 }); next.complete();
       fixture.detectChanges();
       expect(fixture.componentInstance.state()).toBe('normal');
       expect(fixture.nativeElement.textContent).toContain('ไม่พบรายการคำสั่งซื้อ');
@@ -65,10 +65,10 @@ describe('Order List transformations', () => {
   });
   beforeEach(() => TestBed.configureTestingModule({ providers: [provideHttpClient(withInterceptors([mockOrdersInterceptor]))] }));
   it('handles service loading, error, retry, and successful empty results', async () => {
-    const first = new Subject<readonly Order[]>();
-    const retry = new Subject<readonly Order[]>();
-    const getOrders = vi.fn().mockReturnValueOnce(first).mockReturnValueOnce(retry);
-    TestBed.configureTestingModule({ providers: [{ provide: OrderService, useValue: { getOrders } }] });
+    const first = new Subject<OrderPage>();
+    const retry = new Subject<OrderPage>();
+    const getOrdersPage = vi.fn().mockReturnValueOnce(first).mockReturnValueOnce(retry);
+    TestBed.configureTestingModule({ providers: [{ provide: OrderService, useValue: { getOrdersPage } }] });
     const fixture = TestBed.createComponent(OrderDashboardComponent);
     fixture.detectChanges();
     const page = fixture.nativeElement as HTMLElement;
@@ -78,9 +78,9 @@ describe('Order List transformations', () => {
     expect(page.querySelector('[role="alert"]')?.textContent).toContain('ไม่สามารถโหลดข้อมูลได้');
     page.querySelector<HTMLButtonElement>('section.card > button')!.click();
     fixture.detectChanges();
-    expect(getOrders).toHaveBeenCalledTimes(2);
+    expect(getOrdersPage).toHaveBeenCalledTimes(2);
     expect(page.querySelector('[aria-busy]')?.getAttribute('aria-busy')).toBe('true');
-    retry.next([]);
+    retry.next({ items: [], total: 0 });
     retry.complete();
     await fixture.whenStable();
     expect(page.querySelector('[role="status"]')?.textContent).toContain('ไม่พบรายการคำสั่งซื้อ');
@@ -103,8 +103,8 @@ describe('Order List transformations', () => {
   });
 
   it('unsubscribes from outstanding service requests when destroyed', () => {
-    const source = new Subject<readonly Order[]>();
-    TestBed.configureTestingModule({ providers: [{ provide: OrderService, useValue: { getOrders: () => source } }] });
+    const source = new Subject<OrderPage>();
+    TestBed.configureTestingModule({ providers: [{ provide: OrderService, useValue: { getOrdersPage: () => source } }] });
     const fixture = TestBed.createComponent(OrderDashboardComponent);
     fixture.detectChanges();
     expect(source.observed).toBe(true);
