@@ -35,7 +35,9 @@
     }
     <div [attr.aria-busy]="state() === 'loading'">
     @if (state() === 'normal' && filteredOrders().length > 0) {
-    <app-order-table tableId="dashboard-orders" [orders]="displayOrders()" [expandedRow]="expandedRow()" (detailsRequested)="toggleDetails($event)" />
+    <app-order-table tableId="dashboard-orders" [orders]="displayOrders()" [expandedRow]="expandedRow()"
+      [detail]="detail()" [detailState]="detailState()" [saveState]="saveState()"
+      (detailsRequested)="toggleDetails($event)" (detailRetry)="retryDetails()" (statusRequested)="saveStatus($event)" />
     <section class="order-summary" aria-labelledby="summary-heading">
       <h3 id="summary-heading">สรุปตามหมายเลขคำสั่งซื้อ</h3>
       <p>สรุปจากรายการที่ตรงกับคำค้นหา</p>

@@ -130,7 +130,7 @@ OrderDashboardComponent
 OrderService เป็นแหล่งข้อมูล Order และส่งข้อมูลให้ OrderDashboardComponent ซึ่งเป็น Smart Component สำหรับจัดการข้อมูลและ Search จากนั้นส่งข้อมูลผ่าน Input ไปยัง OrderTableComponent เพื่อแสดงตาราง โดย StatusBadgeComponent ใช้สำหรับแสดงสถานะและสามารถนำกลับมาใช้ซ้ำได้ เมื่อผู้ใช้กดดูรายละเอียด Child Component จะส่ง Event กลับไปยัง Parent Component
 
 
-## ข้อ 5: REST API และ Asynchronous Request
+## ข้อ 5: RESTful API และ Asynchronous Request
 
 ### โครงสร้าง
 
@@ -151,7 +151,7 @@ OrderService เป็นแหล่งข้อมูล Order และส่
 
 ID เป็น ID ของแถว (2/4/5) ไม่ใช่หมายเลขคำสั่งซื้อที่อาจซ้ำกัน Mock คืนข้อมูลหลัง 600ms ใช้ page เริ่มที่ 1 ขนาดหน้าละ 10 รายการ และคืน [] เมื่อไม่มีผลลัพธ์ การแก้สถานะอยู่ในหน่วยความจำจนกว่าจะรีโหลด ไม่แก้ข้อมูลต้นฉบับ MOCK_ORDERS คืน 400 สำหรับพารามิเตอร์ผิด, 404 เมื่อไม่พบ และ 405 เมื่อ method ไม่รองรับ
 
-UI ปัจจุบันเรียกรายการที่ page 1 และสรุปยอดจากรายการที่ API คืนมาในหน้านั้น ยังไม่ได้เพิ่ม UI pagination/status filter/แก้สถานะ ส่วน GET รายละเอียดและ PATCH พร้อมใช้ใน Service และทดสอบผ่าน Unit Tests แล้ว ปุ่มรายละเอียดเดิมยังเปิดข้อมูลแถวที่โหลดไว้
+UI ปัจจุบันเรียกรายการที่ page 1 และสรุปยอดจากรายการที่ API คืนมาในหน้านั้น ปุ่มดูรายละเอียดเรียก GET /api/orders/:id และแสดงเฉพาะข้อมูลตอบกลับจาก API ส่วนฟอร์มสถานะเรียก PATCH /api/orders/:id/status โดยยังไม่ได้เพิ่ม UI pagination/status filter
 
 ### RxJS Operators
 
@@ -185,4 +185,22 @@ Mock interceptor ตอบ HttpClient ภายในแอป จึงไม�
 
 เมื่อมี Backend ให้ตั้ง mockApi.enabled เป็น false และเปลี่ยน apiBaseUrl ใน environment ที่ใช้ โดย Backend ต้องรองรับ response ตาม API Contract หากคนละ origin ให้ตั้ง CORS ฝั่ง Backend ไม่ต้องเปลี่ยน URL ใน Component ตอนนี้ทั้ง development และ production เปิด Mock เพื่อให้รันได้โดยไม่มี Backend ไม่มี Token/API key ใน environment
 
-ผลตรวจข้อ 5: Unit Tests ผ่าน 36/36 รวม Pure Functions เดิม, HTTP contract, retry limit, cancellation, Mock PATCH และ UI states; production build ผ่าน การตรวจเบราว์เซอร์รอบข้อ 5 ยังไม่เสร็จเนื่องจากข้อจำกัดโควตาระบบตรวจอนุมัติเครื่องมือ
+ผลตรวจข้อ 5 ฉบับสมบูรณ์: Unit Tests ผ่าน 41/41 รวม Pure Functions เดิม, HTTP contract, retry limit, cancellation, UI GET รายละเอียด และ UI PATCH สถานะ; production build ผ่าน
+
+### รายละเอียดและการบันทึกสถานะบน UI
+
+- กด **ดูรายละเอียด**: OrderTable ส่ง output ให้ Dashboard เรียก `OrderService.getOrderById(id)` ผ่าน HttpClient ระหว่างรอแสดง “กำลังโหลดรายละเอียด...” และเมื่อสำเร็จแสดงข้อมูล API แทนการใช้ row เดิม
+- หาก GET รายละเอียดล้มเหลว แสดง “ไม่สามารถโหลดรายละเอียดคำสั่งซื้อได้ กรุณาลองใหม่อีกครั้ง” พร้อมปุ่มลองใหม่ GET มี retry จำกัดเหมือนรายการ
+- เลือกสถานะในฟอร์มที่มี label แล้วกด **บันทึกสถานะ**: ส่ง PATCH พร้อม status ระหว่างรอปิด select/ปุ่มและแสดง “กำลังบันทึก...”
+- สำเร็จ: แสดง “อัปเดตสถานะสำเร็จ” และใช้ response อัปเดตตารางกับรายละเอียดแบบ immutable โดยไม่ reload ทั้งหน้า Mock เก็บค่าใหม่ไว้ให้ GET ครั้งถัดไปจนกว่าจะรีโหลดแอป
+- ล้มเหลว: แสดง “ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง” คงสถานะเดิมในรายการไว้ และให้กดบันทึกใหม่เอง ไม่มี automatic retry สำหรับ PATCH
+- ใช้ `exhaustMap` ป้องกัน PATCH ซ้อนจากการกดซ้ำ, `switchMap` ยกเลิก GET รายละเอียดเก่าเมื่อเปลี่ยนแถว และ `takeUntil` ยกเลิก subscription การบันทึกเมื่อปิด/เปลี่ยนรายละเอียด ทั้งหมดใช้ `takeUntilDestroyed` เมื่อ Dashboard ถูกทำลาย การยกเลิกฝั่ง client ไม่รับประกันว่าจะย้อนคำสั่งที่ Backend จริงรับไปแล้ว จึงอ่านข้อมูลใหม่ด้วย GET ทุกครั้งที่เปิดรายละเอียด
+- สถานะ UI ครบ Loading / Empty / Error / Success; Loading/ผลบันทึกใช้ role=status, Error ใช้ role=alert และ select/button มี focus-visible
+
+ไฟล์เพิ่ม: `components/order-status-form/order-status-form.ts`, `.html`, `.css`, `.spec.ts` และ `order-dashboard/order-dashboard-api.spec.ts`
+
+ไฟล์แก้: `services/order.service.ts`, `order-dashboard/order-dashboard.ts`, `.html`, `components/order-table/order-table.ts`, `.html` และ README นี้ โดย OrderTable/OrderStatusForm ไม่เรียก Service หรือ HttpClient โดยตรง
+
+วิธีตรวจ: เปิดหน้า → ดูรายละเอียดแถว 2 → เปลี่ยนเป็นส่งของแล้ว → บันทึกสถานะ → ตรวจ badge เปลี่ยน → ปิด/เปิดรายละเอียดอีกครั้งเพื่อตรวจว่าค่าใหม่ถูกอ่านกลับจาก Mock API ได้ ใช้ `npm test -- --watch=false` ตรวจ Error ของ GET/PATCH, การลองใหม่, การป้องกันกดซ้ำ และการยกเลิก request
+
+ตรวจ UI ฉบับสมบูรณ์ด้วย Chrome แบบ headless ที่ 360/768/1440px: ไม่มี page horizontal overflow, detail Loading และ save Loading แสดงจริง, ปุ่มปิดระหว่าง PATCH, badge/รายละเอียดอัปเดต และเปิดรายละเอียดซ้ำอ่านสถานะที่บันทึกไว้ได้ ตรวจ Tab ไปปุ่มบันทึกและ focus-visible 3px ผ่าน ยังไม่ได้ตรวจ Screen Reader แบบอ่านออกเสียงจริง

@@ -28,6 +28,10 @@ export class OrderService {
   }
 
   getOrder(id: number): Observable<Order> {
+    return this.getOrderById(id);
+  }
+
+  getOrderById(id: number): Observable<Order> {
     return this.http.get<Order>(`${this.url}/${encodeURIComponent(id)}`).pipe(retryReads());
   }
 

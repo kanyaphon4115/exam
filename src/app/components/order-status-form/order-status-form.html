@@ -1,0 +1,17 @@
+<form (submit)="submit($event, status.value)" [attr.aria-busy]="state() === 'saving'">
+  <label [for]="controlId()">สถานะสินค้า</label>
+  <div class="controls">
+    <select #status [id]="controlId()" [value]="order().status" [disabled]="state() === 'saving'">
+      <option value="ชำระเงินแล้ว">ชำระเงินแล้ว</option>
+      <option value="ส่งของแล้ว">ส่งของแล้ว</option>
+    </select>
+    <button type="submit" [disabled]="state() === 'saving'">บันทึกสถานะ</button>
+  </div>
+</form>
+<p role="status" aria-atomic="true">
+  @if (state() === 'saving') { กำลังบันทึก... }
+  @if (state() === 'success') { อัปเดตสถานะสำเร็จ }
+</p>
+<p role="alert" aria-atomic="true">
+  @if (state() === 'error') { ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง }
+</p>

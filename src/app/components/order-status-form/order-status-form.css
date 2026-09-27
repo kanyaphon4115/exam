@@ -1,0 +1,10 @@
+:host { display: block; margin-top: 16px; }
+label { display: block; font-weight: 600; margin-bottom: 8px; }
+.controls { display: flex; flex-wrap: wrap; gap: 12px; }
+select, button { font: inherit; min-height: 48px; padding: 10px 14px; border: 1px solid #193f6a; border-radius: 7px; }
+select { max-width: 100%; background: white; color: #202a38; }
+button { background: #193f6a; color: white; cursor: pointer; }
+button:disabled, select:disabled { opacity: .65; cursor: wait; }
+select:focus-visible, button:focus-visible { outline: 3px solid #005fcc; outline-offset: 3px; box-shadow: 0 0 0 3px white; }
+p { margin: 8px 0 0; }
+[role="alert"] { color: #9b2020; }

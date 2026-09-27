@@ -40,9 +40,27 @@
             </tr>
             <tr [id]="tableId() + '-details-' + order.id" [hidden]="expandedRow() !== order.id" class="details-row">
               <td colspan="13">
-                <strong>รายละเอียดคำสั่งซื้อ {{ order.number }} — ลำดับ {{ order.id }}</strong>
-                <p>{{ order.shop }} · {{ order.item }} · {{ order.option }} · {{ order.status }}</p>
-                <p>ยอดรวม {{ order.total | number:'1.2-2' }} + ค่าจัดส่ง {{ order.shipping | number:'1.2-2' }} − ส่วนลด {{ order.discount | number:'1.2-2' }} = รวมสุทธิ {{ order.net | number:'1.2-2' }}</p>
+                @if (expandedRow() === order.id) {
+                  <p role="status" aria-atomic="true">
+                    @if (detailState() === 'loading') { กำลังโหลดรายละเอียด... }
+                  </p>
+                  <p role="alert" aria-atomic="true">
+                    @if (detailState() === 'error') { ไม่สามารถโหลดรายละเอียดคำสั่งซื้อได้ กรุณาลองใหม่อีกครั้ง }
+                  </p>
+                  @if (detailState() === 'error' || detailState() === 'loading') {
+                    <button type="button" [disabled]="detailState() === 'loading'" (click)="detailRetry.emit()">ลองใหม่</button>
+                  }
+                  <div [attr.aria-busy]="detailState() === 'loading'">
+                    @if (detail(); as loaded) {
+                      <strong>รายละเอียดคำสั่งซื้อ {{ loaded.number }} — ลำดับ {{ loaded.id }}</strong>
+                      <p>{{ loaded.shop }} · {{ loaded.item }} · {{ loaded.option }} · {{ loaded.status }}</p>
+                      <p><time [attr.datetime]="loaded.date + 'T' + loaded.time">{{ loaded.thaiDate }}</time></p>
+                      <p>จำนวน {{ loaded.quantity | number:'1.2-2' }} · ยอดรวม {{ loaded.total | number:'1.2-2' }} + ค่าจัดส่ง {{ loaded.shipping | number:'1.2-2' }} − ส่วนลด {{ loaded.discount | number:'1.2-2' }} = รวมสุทธิ {{ loaded.net | number:'1.2-2' }}</p>
+                      <app-order-status-form [order]="loaded" [controlId]="tableId() + '-status-' + loaded.id"
+                        [state]="saveState()" (statusSubmitted)="statusRequested.emit($event)" />
+                    }
+                  </div>
+                }
               </td>
             </tr>
           }
