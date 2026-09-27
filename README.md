@@ -31,7 +31,6 @@ http://localhost:4200
 ```
 
 ## Accessibility
-## Accessibility
 
 1. **Keyboard Navigation**  
    ใช้ `<button>` และ `<input>` ที่เป็น HTML element มาตรฐาน ทำให้ผู้ใช้สามารถกด `Tab` เพื่อเลื่อนไปยังช่องค้นหาและปุ่มต่าง ๆ และใช้ `Enter`/`Space` เพื่อกดปุ่มได้
@@ -56,6 +55,11 @@ http://localhost:4200
 
 1. รัน `npm start` แล้วเปิด `http://localhost:4200` ใน Chrome และ Microsoft Edge
 2. เปิด DevTools (`F12`) และ Device Toolbar (`Ctrl+Shift+M`) เลือก Responsive แล้วทดสอบที่ **360 × 900**, **768 × 900**, **1440 × 900** CSS pixels โดยใช้ zoom 100%
+3. 
+ไฟล์ของข้อ2 
+src/app/order-list/order-list.css
+src/app/app.css
+src/styles.css
 ```
 ทดสอบการแสดงผลทั้งหมด 3 ขนาด
 
@@ -63,7 +67,6 @@ http://localhost:4200
 - Tablet: 768px — ผ่าน
 - Desktop: 1440px — ผ่าน
 
-หน้าเว็บสามารถแสดงผลได้โดยข้อมูลไม่ล้นออกนอกหน้าจอ และตารางสามารถเลื่อนแนวนอนได้เมื่อพื้นที่ไม่เพียงพอ
 
 ### Browser Test Note
 
